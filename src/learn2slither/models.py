@@ -90,13 +90,7 @@ class GameState:
             self.red_apples.add(random.choice(empty_cells))
 
     def change_direction(self, new_direction: Direction) -> None:
-        """Changes the snake's direction, preventing direct reversals."""
-        if len(self.snake.body) > 1:
-            neck = self.snake.body[1]
-            head = self.snake.head
-            next_point = head.move(new_direction)
-            if next_point == neck:
-                return
+        """Changes the snake's direction."""
         self.snake.direction = new_direction
 
     def step(self) -> None:

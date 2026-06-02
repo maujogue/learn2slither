@@ -134,7 +134,7 @@ def run_headless_autopilot(
     width: int = 10,
     height: int = 10,
     qtable_path: str | None = None,
-    iterations: int = 1,
+    runs: int = 1,
 ) -> list[int]:
     """Runs the snake game headlessly using the Q-table agent.
 
@@ -156,7 +156,7 @@ def run_headless_autopilot(
 
     scores = []
     max_steps = width * height * 10
-    for i in range(1, iterations + 1):
+    for i in range(1, runs + 1):
         state = create_initial_game(width=width, height=height)
         done = False
         steps = 0
@@ -164,21 +164,21 @@ def run_headless_autopilot(
             curr_features = StateFeatures.from_game_state(state)
             action = agent.get_action(curr_features, training=False)
 
-            # Map relative action to absolute direction
-            dx, dy = state.snake.direction.value
-            if action == 0:  # STRAIGHT
-                new_dir = state.snake.direction
-            elif action == 1:  # LEFT
-                new_dir = next(d for d in Direction if d.value == (dy, -dx))
-            else:  # RIGHT
-                new_dir = next(d for d in Direction if d.value == (-dy, dx))
+            # Map absolute action to direction
+            action_to_dir = {
+                0: Direction.UP,
+                1: Direction.LEFT,
+                2: Direction.DOWN,
+                3: Direction.RIGHT,
+            }
+            new_dir = action_to_dir[action]
 
             state.change_direction(new_dir)
             state.step()
             done = state.is_game_over
             steps += 1
 
-        progress_str = f"Game {i}/{iterations} - Current Score: {len(state.snake.body)}"
+        progress_str = f"Game {i}/{runs} - Current Score: {len(state.snake.body)}"
         print(f"{progress_str:<50}", end="\r")
 
         score = len(state.snake.body)

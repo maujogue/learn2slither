@@ -15,4 +15,4 @@ requires = ["uv_build>=0.10.0,<0.11.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-learn2slither = "learn2slither.main:main"
+l2s = "learn2slither.main:main"
