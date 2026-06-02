@@ -128,3 +128,62 @@ def run_cli_game(width: int = 10, height: int = 10, speed: int = 6) -> None:
 
     print(f"Final Score (Length): {len(state.snake.body)}")
     print("=" * 60)
+
+
+def run_headless_autopilot(
+    width: int = 10,
+    height: int = 10,
+    qtable_path: str | None = None,
+    iterations: int = 1,
+) -> list[int]:
+    """Runs the snake game headlessly using the Q-table agent.
+
+    Plays the specified number of games and returns the list of scores.
+    """
+    from learn2slither.agent import QLearningAgent, StateFeatures
+    from learn2slither.models import create_initial_game, Direction
+
+    agent = QLearningAgent()
+    if qtable_path:
+        if agent.q_table.load_from_file(qtable_path):
+            print(f"Loaded Q-table from '{qtable_path}'")
+        else:
+            print(
+                f"⚠️ Warning: Could not load Q-table from '{qtable_path}'. Using untrained agent."
+            )
+    else:
+        print("⚠️ Warning: No Q-table path provided. Using untrained agent.")
+
+    scores = []
+    max_steps = width * height * 10
+    for i in range(1, iterations + 1):
+        state = create_initial_game(width=width, height=height)
+        done = False
+        steps = 0
+        while not done and steps < max_steps:
+            curr_features = StateFeatures.from_game_state(state)
+            action = agent.get_action(curr_features, training=False)
+
+            # Map relative action to absolute direction
+            dx, dy = state.snake.direction.value
+            if action == 0:  # STRAIGHT
+                new_dir = state.snake.direction
+            elif action == 1:  # LEFT
+                new_dir = next(d for d in Direction if d.value == (dy, -dx))
+            else:  # RIGHT
+                new_dir = next(d for d in Direction if d.value == (-dy, dx))
+
+            state.change_direction(new_dir)
+            state.step()
+            done = state.is_game_over
+            steps += 1
+
+        progress_str = f"Game {i}/{iterations} - Current Score: {len(state.snake.body)}"
+        print(f"{progress_str:<50}", end="\r")
+
+        score = len(state.snake.body)
+        scores.append(score)
+
+    # Clear the progress line so subsequent prints are clean
+    print(" " * 60, end="\r")
+    return scores

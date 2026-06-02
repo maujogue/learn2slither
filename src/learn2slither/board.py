@@ -1,11 +1,13 @@
 import math
+import os
 import sys
 import pygame
 from learn2slither.models import Direction, GameOverReason, create_initial_game
 from learn2slither.cli import print_vision_grid
+from learn2slither.agent import QLearningAgent, StateFeatures
 
 # UI Constants
-CELL_SIZE = 40  # Increased cell size for a gorgeous compact window
+CELL_SIZE = 40  # Cell size for standard square layout
 GRID_WIDTH = 10
 GRID_HEIGHT = 10
 BOARD_WIDTH = GRID_WIDTH * CELL_SIZE
@@ -15,27 +17,21 @@ HEADER_HEIGHT = 80
 WINDOW_WIDTH = BOARD_WIDTH
 WINDOW_HEIGHT = BOARD_HEIGHT + HEADER_HEIGHT
 
-# Palette (Rich Slate, Teal-Indigo Gradients, Emerald/Rose highlights)
-COLOR_BG_DARK = (15, 23, 42)  # Slate 900
-COLOR_HEADER_BG = (30, 41, 59)  # Slate 800
-COLOR_GRID_LINE = (30, 41, 59)  # Slate 800 (slightly lighter)
-COLOR_DIVIDER = (51, 65, 85)  # Slate 700
-COLOR_TEXT_PRIMARY = (248, 250, 252)  # Slate 50
-COLOR_TEXT_MUTED = (148, 163, 184)  # Slate 400
+# Palette (Rustic Retro Monochrome/Green theme - no fancy gradients or slate-indigo)
+COLOR_BG_DARK = (20, 20, 20)      # Near black
+COLOR_HEADER_BG = (35, 35, 35)    # Dark gray
+COLOR_GRID_LINE = (45, 45, 45)    # Muted grid line
+COLOR_DIVIDER = (70, 70, 70)      # Gray divider line
+COLOR_TEXT_PRIMARY = (230, 230, 230) # Off-white / light gray
+COLOR_TEXT_MUTED = (160, 160, 160)   # Muted gray
 
-# Snake Color Gradient (Teal to Indigo)
-COLOR_SNAKE_HEAD = (6, 182, 212)  # Cyan 500
-COLOR_SNAKE_TAIL = (99, 102, 241)  # Indigo 500
-
-# Apple Colors
-COLOR_GREEN_APPLE = (16, 185, 129)  # Emerald 500
-COLOR_GREEN_LEAF = (4, 120, 87)  # Emerald 700
-COLOR_RED_APPLE = (239, 68, 68)  # Red 500
-COLOR_RED_STEM = (120, 53, 15)  # Amber 900 (Brown)
-COLOR_APPLE_GLOSS = (255, 255, 255)  # White highlight
-
-# Alert Color
-COLOR_ALERT = (244, 63, 94)  # Rose 500
+# Snake & Apple (Solid, simple colors - no gloss, reflections or fancy gradients)
+COLOR_SNAKE_HEAD = (30, 100, 200)   # Darker rustic blue for head
+COLOR_SNAKE_BODY = (70, 150, 220)   # Lighter rustic blue for body
+COLOR_SNAKE_TAIL = COLOR_SNAKE_BODY  # Keep reference for compatibility
+COLOR_GREEN_APPLE = (0, 200, 0)   # Solid green apple
+COLOR_RED_APPLE = (200, 0, 0)     # Solid red apple
+COLOR_ALERT = (200, 0, 0)         # Red alert
 
 
 class Slider:
@@ -72,13 +68,14 @@ class Slider:
             screen, track_color, (self.x, self.y), (self.x + self.width, self.y), 4
         )
 
-        # Draw handle
+        # Draw handle as a simple full square block (no circles)
         handle_x = self.x + int(
             (self.current_val - self.min_val)
             / (self.max_val - self.min_val)
             * self.width
         )
-        pygame.draw.circle(screen, handle_color, (handle_x, self.y), 8)
+        handle_rect = pygame.Rect(handle_x - 6, self.y - 8, 12, 16)
+        pygame.draw.rect(screen, handle_color, handle_rect)
 
     def handle_event(self, event, mouse_pos) -> bool:
         """Returns True if the value changed."""
@@ -111,7 +108,15 @@ class Slider:
         self.current_val = int(round(raw_val))
 
 
-def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: int = 6):
+def run_game(
+    initial_width: int = 10,
+    initial_height: int = 10,
+    initial_speed: int = 6,
+    qtable_path: str | None = None,
+    autopilot: bool = True,
+    training: bool = False,
+    episodes: int = 15000,
+):
     pygame.init()
     pygame.font.init()
     pygame.display.set_caption("Learn2Slither - Playable Snake Game")
@@ -123,8 +128,15 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
         board_w = w * CELL_SIZE
         board_h = h * CELL_SIZE
         win_w = board_w + SIDEBAR_WIDTH
-        win_h = max(board_h + HEADER_HEIGHT, 460)
+        win_h = max(board_h + HEADER_HEIGHT, 580)
         return win_w, win_h, board_w, board_h
+
+    def get_min_green_dist(s) -> float:
+        if not s.green_apples:
+            return 0.0
+        h = s.snake.head
+        return min(abs(a.x - h.x) + abs(a.y - h.y) for a in s.green_apples)
+
 
     # Initialize current dimensions and speed
     grid_width = initial_width
@@ -135,22 +147,49 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
     screen = pygame.display.set_mode((win_w, win_h))
     clock = pygame.time.Clock()
 
-    # Load elegant fonts with system fallbacks
+    # Initialize agent and load pretrained Q-table
+    agent = QLearningAgent()
+    if qtable_path:
+        agent.q_table.load_from_file(qtable_path)
+    else:
+        try:
+            root_dir = os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
+            models_qtable = os.path.join(root_dir, "models", "q_table.json")
+            if os.path.exists(models_qtable):
+                agent.q_table.load_from_file(models_qtable)
+            else:
+                legacy_qtable = os.path.join(os.path.dirname(__file__), "q_table.json")
+                agent.q_table.load_from_file(legacy_qtable)
+        except Exception:
+            pass
+    ai_mode = autopilot
+ 
+
+    # Load rustic monospace fonts with system fallbacks
     font_title = pygame.font.SysFont(
-        "Inter, Helvetica, Arial, sans-serif", 28, bold=True
+        "Courier New, Courier, Monospace, monospace", 24, bold=True
     )
     font_title_sm = pygame.font.SysFont(
-        "Inter, Helvetica, Arial, sans-serif", 20, bold=True
+        "Courier New, Courier, Monospace, monospace", 16, bold=True
     )
-    font_subtitle = pygame.font.SysFont("Inter, Helvetica, Arial, sans-serif", 16)
+    font_subtitle = pygame.font.SysFont(
+        "Courier New, Courier, Monospace, monospace", 14
+    )
     font_gameover = pygame.font.SysFont(
-        "Inter, Helvetica, Arial, sans-serif", 38, bold=True
+        "Courier New, Courier, Monospace, monospace", 32, bold=True
     )
-    font_gameover_sub = pygame.font.SysFont("Inter, Helvetica, Arial, sans-serif", 18)
+    font_gameover_sub = pygame.font.SysFont(
+        "Courier New, Courier, Monospace, monospace", 16
+    )
 
     # Initialize game state
     state = create_initial_game(width=grid_width, height=grid_height)
-    game_started = False
+    game_started = True if training else False
+    episode = 1
+    score = len(state.snake.body)
+    last_dist = get_min_green_dist(state)
 
     # Instantiate Sliders (Width: 5-25, Height: 5-20, Speed: 2-20)
     slider_width = Slider(
@@ -176,7 +215,7 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
         HEADER_HEIGHT + 230,
         SIDEBAR_WIDTH - 40,
         1,
-        20,
+        1000,
         speed,
         "Speed (steps/s)",
     )
@@ -200,12 +239,92 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
                 break
 
             elif event.type == MOVE_EVENT:
-                if game_started and not state.is_game_over:
-                    state.step()
+                if (game_started or ai_mode) and not state.is_game_over:
+                    if training:
+                        # Extract relative features
+                        curr_features = StateFeatures.from_game_state(state)
+                        # Choose action (training exploration)
+                        action = agent.get_action(curr_features, training=True)
+                        # Translate relative action to absolute direction
+                        dx, dy = state.snake.direction.value
+                        if action == 0:  # STRAIGHT
+                            new_dir = state.snake.direction
+                        elif action == 1:  # LEFT
+                            new_dir = next(d for d in Direction if d.value == (dy, -dx))
+                        else:  # RIGHT
+                            new_dir = next(d for d in Direction if d.value == (-dy, dx))
+                        state.change_direction(new_dir)
+
+                        # Move one step
+                        state.step()
+
+                        # Observe new state and reward
+                        next_features = StateFeatures.from_game_state(state)
+                        done = state.is_game_over
+
+                        # Compute reward
+                        reward = 0.0
+                        if done:
+                            reward = -100.0  # Heavy crash penalty
+                        else:
+                            new_len = len(state.snake.body)
+                            if new_len > score:
+                                reward = 100.0  # High reward for growing
+                                score = new_len
+                            elif new_len < score:
+                                reward = -30.0  # Penalty for shrinking (eating a red apple)
+                                score = new_len
+                            else:
+                                # Survival reward
+                                reward = 1.0
+
+                                # Dense distance-based reward
+                                new_dist = get_min_green_dist(state)
+                                if new_dist < last_dist:
+                                    reward += 10.0  # Reward for moving closer to green apple
+                                elif new_dist > last_dist:
+                                    reward -= 15.0  # Penalty for moving away from green apple
+                                last_dist = new_dist
+
+                        # Update Q-table
+                        agent.update(curr_features, action, reward, next_features, done)
+
+                        if done:
+                            agent.decay_epsilon()
+                            if qtable_path:
+                                agent.q_table.save_to_file(qtable_path)
+
+                            episode += 1
+                            if episode > episodes:
+                                print(f"🎉 Training of {episodes} episodes completed successfully!")
+                                running = False
+                            else:
+                                # Reset for next training episode automatically
+                                state = create_initial_game(width=grid_width, height=grid_height)
+                                score = len(state.snake.body)
+                                last_dist = get_min_green_dist(state)
+                    else:
+                        if ai_mode:
+                            # Extract relative features
+                            curr_features = StateFeatures.from_game_state(state)
+                            # Choose action
+                            action = agent.get_action(curr_features, training=False)
+                            # Translate relative action to absolute direction
+                            dx, dy = state.snake.direction.value
+                            if action == 0:  # STRAIGHT
+                                new_dir = state.snake.direction
+                            elif action == 1:  # LEFT
+                                new_dir = next(d for d in Direction if d.value == (dy, -dx))
+                            else:  # RIGHT
+                                new_dir = next(d for d in Direction if d.value == (-dy, dx))
+                            state.change_direction(new_dir)
+
+                        state.step()
+
                     # Output State Vision to terminal on every tick
                     print_vision_grid(state)
                     print(f"Snake Length: {len(state.snake.body)}")
-                    if state.is_game_over:
+                    if state.is_game_over and not training:
                         print("\nGAME OVER!")
 
             elif event.type == pygame.KEYDOWN:
@@ -229,7 +348,7 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
                         state = create_initial_game(
                             width=grid_width, height=grid_height
                         )
-                        game_started = False
+                        game_started = ai_mode
 
                         pygame.time.set_timer(MOVE_EVENT, int(1000 / speed))
 
@@ -282,11 +401,20 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
                 slider_width.handle_event(event, mouse_pos)
                 slider_height.handle_event(event, mouse_pos)
 
-                # Check Apply Button click
-                btn_rect = pygame.Rect(
-                    board_w + 20, HEADER_HEIGHT + 290, SIDEBAR_WIDTH - 40, 45
-                )
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    # Check Apply Button and Autopilot toggle clicks
+                    btn_rect = pygame.Rect(
+                        board_w + 20, HEADER_HEIGHT + 290, SIDEBAR_WIDTH - 40, 45
+                    )
+                    # Check Autopilot toggle click
+                    toggle_rect = pygame.Rect(
+                        board_w + 20, HEADER_HEIGHT + 360, SIDEBAR_WIDTH - 40, 45
+                    )
+                    if not training and toggle_rect.collidepoint(mouse_pos):
+                        ai_mode = not ai_mode
+                        if ai_mode:
+                            game_started = True
+
                     if btn_rect.collidepoint(mouse_pos):
                         # Apply width, height, and speed setting immediately
                         grid_width = slider_width.current_val
@@ -303,10 +431,19 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
                         slider_height.x = board_w + 20
                         slider_speed.x = board_w + 20
 
-                        state = create_initial_game(
-                            width=grid_width, height=grid_height
-                        )
-                        game_started = False
+                        # Hot reload grid size change:
+                        state.config.width = grid_width
+                        state.config.height = grid_height
+
+                        # Remove out-of-bounds apples and spawn new ones
+                        state.green_apples = {p for p in state.green_apples if state.is_within_bounds(p)}
+                        state.red_apples = {p for p in state.red_apples if state.is_within_bounds(p)}
+                        while len(state.green_apples) < 2:
+                            state._spawn_green_apple()
+                        while len(state.red_apples) < 1:
+                            state._spawn_red_apple()
+
+                        last_dist = get_min_green_dist(state)
 
                         pygame.time.set_timer(MOVE_EVENT, int(1000 / speed))
 
@@ -317,7 +454,7 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
                         print_vision_grid(state)
                         print("=" * 60)
 
-        # Clear Screen with Slate 900
+        # Clear Screen
         screen.fill(COLOR_BG_DARK)
 
         # ----------------- DRAW HEADER -----------------
@@ -338,20 +475,6 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
         )
         screen.blit(score_text, (15, (HEADER_HEIGHT - score_text.get_height()) // 2))
 
-        # Text: Green and Red Apple legends / Status (anchored relative to win_w)
-        status_y = (HEADER_HEIGHT - 20) // 2
-        # Green apple icon indicator
-        pygame.draw.circle(screen, COLOR_GREEN_APPLE, (win_w - 180, status_y + 10), 6)
-        pygame.draw.circle(screen, COLOR_APPLE_GLOSS, (win_w - 182, status_y + 8), 1.5)
-        green_lbl = font_subtitle.render("Grow (+1)", True, COLOR_TEXT_MUTED)
-        screen.blit(green_lbl, (win_w - 168, status_y + 1))
-
-        # Red apple icon indicator
-        pygame.draw.circle(screen, COLOR_RED_APPLE, (win_w - 90, status_y + 10), 6)
-        pygame.draw.circle(screen, COLOR_APPLE_GLOSS, (win_w - 92, status_y + 8), 1.5)
-        red_lbl = font_subtitle.render("Shrink (-1)", True, COLOR_TEXT_MUTED)
-        screen.blit(red_lbl, (win_w - 78, status_y + 1))
-
         # ----------------- DRAW GRID BOARD -----------------
         # Draw background Grid Lines (within board_w and board_h bounds)
         for x in range(grid_width + 1):
@@ -367,74 +490,37 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
             pygame.draw.line(screen, COLOR_GRID_LINE, (0, dy), (board_w, dy))
 
         # ----------------- DRAW APPLES -----------------
-        # Draw Green Apples
+        # Draw Green Apples as full flat squares
         for apple in state.green_apples:
-            cx = apple.x * CELL_SIZE + CELL_SIZE // 2
-            cy = HEADER_HEIGHT + apple.y * CELL_SIZE + CELL_SIZE // 2
-            # Draw leaf
-            pygame.draw.circle(screen, COLOR_GREEN_LEAF, (cx + 5, cy - 8), 5)
-            # Draw main body
-            pygame.draw.circle(screen, COLOR_GREEN_APPLE, (cx, cy), CELL_SIZE // 2 - 3)
-            # Draw shiny gloss
-            pygame.draw.circle(screen, COLOR_APPLE_GLOSS, (cx - 4, cy - 4), 4)
+            rect = pygame.Rect(
+                apple.x * CELL_SIZE + 2,
+                HEADER_HEIGHT + apple.y * CELL_SIZE + 2,
+                CELL_SIZE - 4,
+                CELL_SIZE - 4,
+            )
+            pygame.draw.rect(screen, COLOR_GREEN_APPLE, rect)
 
-        # Draw Red Apples
+        # Draw Red Apples as full flat squares
         for apple in state.red_apples:
-            cx = apple.x * CELL_SIZE + CELL_SIZE // 2
-            cy = HEADER_HEIGHT + apple.y * CELL_SIZE + CELL_SIZE // 2
-            # Draw stem
-            pygame.draw.line(screen, COLOR_RED_STEM, (cx, cy - 8), (cx + 5, cy - 14), 2)
-            # Draw main body
-            pygame.draw.circle(screen, COLOR_RED_APPLE, (cx, cy), CELL_SIZE // 2 - 3)
-            # Draw shiny gloss
-            pygame.draw.circle(screen, COLOR_APPLE_GLOSS, (cx - 4, cy - 4), 4)
+            rect = pygame.Rect(
+                apple.x * CELL_SIZE + 2,
+                HEADER_HEIGHT + apple.y * CELL_SIZE + 2,
+                CELL_SIZE - 4,
+                CELL_SIZE - 4,
+            )
+            pygame.draw.rect(screen, COLOR_RED_APPLE, rect)
 
         # ----------------- DRAW SNAKE -----------------
-        body_len = len(state.snake.body)
         for i, point in enumerate(state.snake.body):
-            cx = point.x * CELL_SIZE + CELL_SIZE // 2
-            cy = HEADER_HEIGHT + point.y * CELL_SIZE + CELL_SIZE // 2
-
-            # Compute beautiful Cyan-Indigo gradient
-            if body_len > 1:
-                t = i / (body_len - 1)
-            else:
-                t = 0.0
-            r = int(COLOR_SNAKE_HEAD[0] * (1 - t) + COLOR_SNAKE_TAIL[0] * t)
-            g = int(COLOR_SNAKE_HEAD[1] * (1 - t) + COLOR_SNAKE_TAIL[1] * t)
-            b = int(COLOR_SNAKE_HEAD[2] * (1 - t) + COLOR_SNAKE_TAIL[2] * t)
-            segment_color = (r, g, b)
-
-            # Draw segment as a rounded rectangle for premium styling
+            segment_color = COLOR_SNAKE_HEAD if i == 0 else COLOR_SNAKE_BODY
+            # Draw segment as a flat full square with small separation
             rect = pygame.Rect(
-                point.x * CELL_SIZE + 3,
-                HEADER_HEIGHT + point.y * CELL_SIZE + 3,
-                CELL_SIZE - 6,
-                CELL_SIZE - 6,
+                point.x * CELL_SIZE + 1,
+                HEADER_HEIGHT + point.y * CELL_SIZE + 1,
+                CELL_SIZE - 2,
+                CELL_SIZE - 2,
             )
-            pygame.draw.rect(screen, segment_color, rect, border_radius=10)
-
-            # Draw details on the head
-            if i == 0:
-                # White of eyes
-                if state.snake.direction == Direction.UP:
-                    eye_l = (cx - 7, cy - 7)
-                    eye_r = (cx + 7, cy - 7)
-                elif state.snake.direction == Direction.DOWN:
-                    eye_l = (cx - 7, cy + 7)
-                    eye_r = (cx + 7, cy + 7)
-                elif state.snake.direction == Direction.LEFT:
-                    eye_l = (cx - 7, cy - 7)
-                    eye_r = (cx - 7, cy + 7)
-                else:  # Direction.RIGHT
-                    eye_l = (cx + 7, cy - 7)
-                    eye_r = (cx + 7, cy + 7)
-
-                pygame.draw.circle(screen, (255, 255, 255), eye_l, 5)
-                pygame.draw.circle(screen, (255, 255, 255), eye_r, 5)
-                # Pupils (black dots)
-                pygame.draw.circle(screen, (0, 0, 0), eye_l, 2)
-                pygame.draw.circle(screen, (0, 0, 0), eye_r, 2)
+            pygame.draw.rect(screen, segment_color, rect)
 
         # ----------------- DRAW SIDEBAR -----------------
         # Sidebar background
@@ -481,23 +567,132 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
             COLOR_SNAKE_HEAD,
         )
 
-        # Draw Apply Button with hover animation
+        # Draw Apply Button (simple rustic flat square button)
         mouse_pos = pygame.mouse.get_pos()
         btn_rect = pygame.Rect(
             board_w + 20, HEADER_HEIGHT + 290, SIDEBAR_WIDTH - 40, 45
         )
         is_hovered = btn_rect.collidepoint(mouse_pos)
-        btn_color = (
-            (79, 70, 229) if is_hovered else (99, 102, 241)
-        )  # Slate-Indigo gradient shades
+        btn_color = (90, 90, 90) if is_hovered else (60, 60, 60)
 
-        pygame.draw.rect(screen, btn_color, btn_rect, border_radius=8)
+        pygame.draw.rect(screen, btn_color, btn_rect)
+        pygame.draw.rect(screen, COLOR_DIVIDER, btn_rect, 1)  # Outline border
+
         btn_text = font_subtitle.render("APPLY & RESTART", True, COLOR_TEXT_PRIMARY)
         btn_text_rect = btn_text.get_rect(center=btn_rect.center)
         screen.blit(btn_text, btn_text_rect)
 
+        # Draw AUTOPILOT Toggle (no rounded corners, simple)
+        if not training:
+            toggle_rect = pygame.Rect(
+                board_w + 20, HEADER_HEIGHT + 360, SIDEBAR_WIDTH - 40, 45
+            )
+            pygame.draw.rect(screen, COLOR_BG_DARK, toggle_rect)
+            pygame.draw.rect(screen, COLOR_DIVIDER, toggle_rect, 1)  # Outline border
+
+            toggle_lbl = font_subtitle.render("AUTOPILOT", True, COLOR_TEXT_PRIMARY)
+            screen.blit(
+                toggle_lbl,
+                (toggle_rect.x + 15, toggle_rect.y + (45 - toggle_lbl.get_height()) // 2),
+            )
+
+            switch_w = 50
+            switch_h = 24
+            switch_x = toggle_rect.x + toggle_rect.width - switch_w - 15
+            switch_y = toggle_rect.y + (45 - switch_h) // 2
+
+            switch_bg_color = COLOR_SNAKE_HEAD if ai_mode else COLOR_DIVIDER
+            switch_rect = pygame.Rect(switch_x, switch_y, switch_w, switch_h)
+            pygame.draw.rect(screen, switch_bg_color, switch_rect)
+            pygame.draw.rect(screen, COLOR_TEXT_MUTED, switch_rect, 1)
+
+            knob_size = 14
+            knob_y = switch_y + (switch_h - knob_size) // 2
+            knob_x = switch_x + (switch_w - knob_size - 4 if ai_mode else 4)
+            knob_rect = pygame.Rect(knob_x, knob_y, knob_size, knob_size)
+            pygame.draw.rect(screen, (255, 255, 255), knob_rect)
+
+        if ai_mode:
+            # Telemetry header (no AI branding)
+            tel_y = HEADER_HEIGHT + 360 if training else HEADER_HEIGHT + 420
+            lbl_tel = font_title_sm.render("TELEMETRY", True, COLOR_TEXT_PRIMARY)
+            screen.blit(lbl_tel, (board_w + 20, tel_y))
+
+            if training:
+                lbl_ep = font_subtitle.render(
+                    f"Episode: {episode}/{episodes}", True, COLOR_TEXT_MUTED
+                )
+                screen.blit(lbl_ep, (board_w + 20, tel_y + 30))
+
+                lbl_eps = font_subtitle.render(
+                    f"Epsilon: {agent.epsilon:.4f}", True, COLOR_TEXT_MUTED
+                )
+                screen.blit(lbl_eps, (board_w + 20, tel_y + 55))
+
+                lbl_states = font_subtitle.render(
+                    f"Unique States: {len(agent.q_table.table)}", True, COLOR_GREEN_APPLE
+                )
+                screen.blit(lbl_states, (board_w + 20, tel_y + 80))
+            else:
+                # Extract features for display
+                feats = StateFeatures.from_game_state(state)
+
+                # Show danger features
+                danger_str = []
+                if feats.danger_straight:
+                    danger_str.append("Straight")
+                if feats.danger_left:
+                    danger_str.append("Left")
+                if feats.danger_right:
+                    danger_str.append("Right")
+                danger_text = ", ".join(danger_str) if danger_str else "None"
+
+                lbl_danger = font_subtitle.render(
+                    f"Danger: {danger_text}", True, COLOR_TEXT_MUTED
+                )
+                screen.blit(lbl_danger, (board_w + 20, tel_y + 30))
+
+                # Show relative green apple direction
+                apple_str = "None"
+                if feats.green_apple_front:
+                    apple_str = "Front"
+                    if feats.green_apple_left:
+                        apple_str += "-Left"
+                    elif feats.green_apple_right:
+                        apple_str += "-Right"
+                elif feats.green_apple_back:
+                    apple_str = "Back"
+                    if feats.green_apple_left:
+                        apple_str += "-Left"
+                    elif feats.green_apple_right:
+                        apple_str += "-Right"
+                elif feats.green_apple_left:
+                    apple_str = "Left"
+                elif feats.green_apple_right:
+                    apple_str = "Right"
+
+                lbl_apple = font_subtitle.render(
+                    f"Green Apple: {apple_str}", True, COLOR_TEXT_MUTED
+                )
+                screen.blit(lbl_apple, (board_w + 20, tel_y + 55))
+
+                # Show chosen action and Q-value
+                action_id, q_val = agent.q_table.get_best_action_value(feats)
+                action_names = {0: "STRAIGHT", 1: "TURN LEFT", 2: "TURN RIGHT"}
+                act_name = action_names.get(action_id, "STRAIGHT")
+
+                lbl_act = font_subtitle.render(
+                    f"Next Action: {act_name}", True, COLOR_GREEN_APPLE
+                )
+                screen.blit(lbl_act, (board_w + 20, tel_y + 80))
+
+                lbl_q = font_subtitle.render(
+                    f"Action Q-Val: {q_val:.2f}", True, COLOR_GREEN_APPLE
+                )
+                screen.blit(lbl_q, (board_w + 20, tel_y + 105))
+
         # ----------------- DRAW WAITING TO START OVERLAY -----------------
-        if not game_started and not state.is_game_over:
+        if not game_started and not ai_mode and not state.is_game_over:
             # Semi-transparent dark overlay covering the board area
             overlay = pygame.Surface((board_w, board_h))
             overlay.set_alpha(160)
@@ -510,7 +705,7 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
 
             # Main Start Prompt
             start_prompt = font_gameover_sub.render(
-                "PRESS ANY DIRECTION KEY TO START", True, COLOR_SNAKE_HEAD
+                "PRESS ANY DIRECTION KEY TO START", True, COLOR_TEXT_PRIMARY
             )
             start_prompt_rect = start_prompt.get_rect(center=(center_x, center_y - 15))
             screen.blit(start_prompt, start_prompt_rect)
@@ -568,6 +763,10 @@ def run_game(initial_width: int = 10, initial_height: int = 10, initial_speed: i
         # Flip screen
         pygame.display.flip()
         clock.tick(60)  # Limit rendering frames per second
+
+    if training and qtable_path:
+        agent.q_table.save_to_file(qtable_path)
+        print(f"🎉 Progress saved to '{qtable_path}' before exit.")
 
     pygame.quit()
     sys.exit()
