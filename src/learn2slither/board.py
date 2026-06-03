@@ -34,6 +34,52 @@ COLOR_RED_APPLE = (200, 0, 0)  # Solid red apple
 COLOR_ALERT = (200, 0, 0)  # Red alert
 
 
+
+
+def _get_default_qtable_paths(qtable_path: str | None) -> list[str]:
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidates = [
+        os.path.join(root_dir, "models", "q_table.json"),
+        os.path.join(os.path.dirname(__file__), "q_table.json"),
+    ]
+    if qtable_path:
+        candidates.insert(0, qtable_path)
+
+    seen: set[str] = set()
+    paths: list[str] = []
+    for path in candidates:
+        normalized = os.path.abspath(path)
+        if normalized not in seen:
+            seen.add(normalized)
+            paths.append(normalized)
+    return paths
+
+
+def _discover_qtable_files(qtable_path: str | None) -> list[str]:
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    dirs = [os.path.join(root_dir, "models"), os.path.dirname(__file__)]
+    paths = _get_default_qtable_paths(qtable_path)
+    seen = {os.path.abspath(path) for path in paths}
+
+    for directory in dirs:
+        try:
+            names = os.listdir(directory)
+        except OSError:
+            continue
+        for name in sorted(names):
+            if not name.endswith(".json"):
+                continue
+            path = os.path.abspath(os.path.join(directory, name))
+            if path in seen:
+                continue
+            seen.add(path)
+            paths.append(path)
+
+    return [path for path in paths if os.path.exists(path)]
+
+
+def _qtable_label(path: str) -> str:
+    return os.path.basename(path) or path
 class Slider:
     def __init__(
         self,
@@ -158,12 +204,13 @@ def run_game(
 
     # Dynamic layout constants
     SIDEBAR_WIDTH = 300
+    TELEMETRY_HEIGHT = 150
 
     def get_window_size(w, h):
         board_w = w * CELL_SIZE
         board_h = h * CELL_SIZE
         win_w = board_w + SIDEBAR_WIDTH
-        win_h = max(board_h + HEADER_HEIGHT, 800)
+        win_h = max(board_h + HEADER_HEIGHT + TELEMETRY_HEIGHT, 800)
         return win_w, win_h, board_w, board_h
 
     def get_min_green_dist(s) -> float:
@@ -186,22 +233,13 @@ def run_game(
 
     # Initialize agent and load pretrained Q-table
     agent = QLearningAgent()
+    qtable_files = _discover_qtable_files(qtable_path)
+    if qtable_path is None and qtable_files:
+        qtable_path = qtable_files[0]
+    qtable_existed_before_training = bool(qtable_path and os.path.exists(qtable_path))
     if qtable_path:
         agent.q_table.load_from_file(qtable_path)
-    else:
-        try:
-            root_dir = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            )
-            models_qtable = os.path.join(root_dir, "models", "q_table.json")
-            if os.path.exists(models_qtable):
-                agent.q_table.load_from_file(models_qtable)
-            else:
-                legacy_qtable = os.path.join(os.path.dirname(__file__), "q_table.json")
-                agent.q_table.load_from_file(legacy_qtable)
-        except Exception:
-            pass
-    ai_mode = autopilot
+    ai_mode = autopilot and qtable_path is not None
 
     # Load rustic monospace fonts with system fallbacks
     font_title = pygame.font.SysFont(
@@ -268,6 +306,34 @@ def run_game(
         is_exponential=True,
         ticks=[10, 100, 500, 1000, 5000],
     )
+
+    qtable_files = _discover_qtable_files(qtable_path)
+    selected_qtable_index = 0
+    if qtable_path:
+        selected_path = os.path.abspath(qtable_path)
+        for idx, path in enumerate(qtable_files):
+            if path == selected_path:
+                selected_qtable_index = idx
+                break
+    qtable_dropdown_open = False
+
+    def reload_qtable_options() -> None:
+        nonlocal qtable_files, selected_qtable_index
+        qtable_files = _discover_qtable_files(qtable_path)
+        if qtable_path:
+            selected_path = os.path.abspath(qtable_path)
+            for idx, path in enumerate(qtable_files):
+                if path == selected_path:
+                    selected_qtable_index = idx
+                    return
+        selected_qtable_index = 0
+
+    def select_qtable(path: str) -> None:
+        nonlocal qtable_path, qtable_existed_before_training
+        qtable_path = path
+        qtable_existed_before_training = os.path.exists(path)
+        agent.q_table.load_from_file(path)
+        print(f"Loaded Q-table from '{path}' for autopilot.")
 
     # Print initial state vision matrix
     print("\n" + "=" * 60)
@@ -355,7 +421,7 @@ def run_game(
 
                     new_qtable_path = qtable_path
                     new_sessions = episodes
-                    if qtable_path:
+                    if qtable_path and qtable_existed_before_training:
                         basename = os.path.basename(qtable_path)
                         match = re.search(r"(\d+)", basename)
                         if match:
@@ -375,12 +441,17 @@ def run_game(
                                 os.path.dirname(qtable_path), new_basename
                             )
                     else:
-                        root_dir = os.path.dirname(
-                            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                        )
-                        new_qtable_path = os.path.join(
-                            root_dir, "models", f"q_table_{episodes}.json"
-                        )
+                        if not qtable_path:
+                            root_dir = os.path.dirname(
+                                os.path.dirname(
+                                    os.path.dirname(os.path.abspath(__file__))
+                                )
+                            )
+                            new_qtable_path = os.path.join(
+                                root_dir, "models", f"q_table_{episodes}.json"
+                            )
+                        else:
+                            new_qtable_path = qtable_path
                         new_sessions = episodes
 
                     if (
@@ -398,6 +469,7 @@ def run_game(
 
                     qtable_path = new_qtable_path
                     agent.q_table.save_to_file(qtable_path)
+                    reload_qtable_options()
                     print(
                         f"🎉 Training of {episodes} episodes completed! Trained Q-table saved/renamed to '{qtable_path}'."
                     )
@@ -542,23 +614,55 @@ def run_game(
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     # Check Autopilot toggle click
                     toggle_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 300, SIDEBAR_WIDTH - 40, 45
+                        board_w + 20, HEADER_HEIGHT + 345, SIDEBAR_WIDTH - 40, 45
                     )
                     if not training and toggle_rect.collidepoint(mouse_pos):
-                        ai_mode = not ai_mode
-                        if ai_mode:
-                            game_started = True
+                        if not ai_mode:
+                            reload_qtable_options()
+                            if qtable_path is None and qtable_files:
+                                select_qtable(qtable_files[selected_qtable_index])
+                        if qtable_path is not None:
+                            ai_mode = not ai_mode
+                            if ai_mode:
+                                game_started = True
+
+                    dropdown_rect = pygame.Rect(
+                        board_w + 20, HEADER_HEIGHT + 395, SIDEBAR_WIDTH - 40, 36
+                    )
+                    option_rects = [
+                        pygame.Rect(
+                            dropdown_rect.x,
+                            dropdown_rect.y - (i + 1) * 28,
+                            dropdown_rect.width,
+                            28,
+                        )
+                        for i in range(min(len(qtable_files), 5))
+                    ]
+                    if not training and dropdown_rect.collidepoint(mouse_pos):
+                        reload_qtable_options()
+                        qtable_dropdown_open = not qtable_dropdown_open
+                    elif not training and qtable_dropdown_open:
+                        clicked_option = False
+                        for idx, option_rect in enumerate(option_rects):
+                            if option_rect.collidepoint(mouse_pos):
+                                selected_qtable_index = idx
+                                select_qtable(qtable_files[idx])
+                                qtable_dropdown_open = False
+                                clicked_option = True
+                                break
+                        if not clicked_option:
+                            qtable_dropdown_open = False
 
                     # Check Step-by-step toggle click
                     step_toggle_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 360, SIDEBAR_WIDTH - 40, 45
+                        board_w + 20, HEADER_HEIGHT + 285, SIDEBAR_WIDTH - 40, 45
                     )
                     if not training and step_toggle_rect.collidepoint(mouse_pos):
                         step_by_step = not step_by_step
 
                     # Check Train Sessions Button click
                     btn_train_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 490, SIDEBAR_WIDTH - 40, 40
+                        board_w + 35, HEADER_HEIGHT + 575, SIDEBAR_WIDTH - 70, 40
                     )
                     if not training and btn_train_rect.collidepoint(mouse_pos):
                         training = True
@@ -739,12 +843,14 @@ def run_game(
         # Draw AUTOPILOT Toggle (no rounded corners, simple)
         if not training:
             toggle_rect = pygame.Rect(
-                board_w + 20, HEADER_HEIGHT + 300, SIDEBAR_WIDTH - 40, 45
+                board_w + 20, HEADER_HEIGHT + 345, SIDEBAR_WIDTH - 40, 45
             )
+            autopilot_available = qtable_path is not None or bool(qtable_files)
             pygame.draw.rect(screen, COLOR_BG_DARK, toggle_rect)
             pygame.draw.rect(screen, COLOR_DIVIDER, toggle_rect, 1)  # Outline border
 
-            toggle_lbl = font_subtitle.render("AUTOPILOT", True, COLOR_TEXT_PRIMARY)
+            toggle_label_color = COLOR_TEXT_PRIMARY if autopilot_available else COLOR_TEXT_MUTED
+            toggle_lbl = font_subtitle.render("AUTOPILOT", True, toggle_label_color)
             screen.blit(
                 toggle_lbl,
                 (
@@ -767,12 +873,49 @@ def run_game(
             knob_y = switch_y + (switch_h - knob_size) // 2
             knob_x = switch_x + (switch_w - knob_size - 4 if ai_mode else 4)
             knob_rect = pygame.Rect(knob_x, knob_y, knob_size, knob_size)
-            pygame.draw.rect(screen, (255, 255, 255), knob_rect)
+            knob_color = (255, 255, 255) if autopilot_available else COLOR_TEXT_MUTED
+            pygame.draw.rect(screen, knob_color, knob_rect)
+
+            dropdown_rect = pygame.Rect(
+                board_w + 20, HEADER_HEIGHT + 395, SIDEBAR_WIDTH - 40, 36
+            )
+            pygame.draw.rect(screen, COLOR_BG_DARK, dropdown_rect)
+            pygame.draw.rect(screen, COLOR_DIVIDER, dropdown_rect, 1)
+
+            if qtable_files:
+                selected_label = _qtable_label(qtable_files[selected_qtable_index])
+            else:
+                selected_label = "No Q-table files"
+            max_label_chars = 25
+            if len(selected_label) > max_label_chars:
+                selected_label = selected_label[: max_label_chars - 1] + "…"
+            qtable_label_color = COLOR_TEXT_PRIMARY if qtable_files else COLOR_TEXT_MUTED
+            qtable_text = font_subtitle.render(
+                selected_label, True, qtable_label_color
+            )
+            screen.blit(
+                qtable_text,
+                (
+                    dropdown_rect.x + 12,
+                    dropdown_rect.y + (dropdown_rect.height - qtable_text.get_height())
+                    // 2,
+                ),
+            )
+            arrow_text = "▲" if qtable_dropdown_open else "▼"
+            arrow = font_subtitle.render(arrow_text, True, COLOR_TEXT_MUTED)
+            screen.blit(
+                arrow,
+                (
+                    dropdown_rect.right - arrow.get_width() - 12,
+                    dropdown_rect.y + (dropdown_rect.height - arrow.get_height()) // 2,
+                ),
+            )
+
 
         # Draw STEP-BY-STEP Toggle (no rounded corners, simple)
         if not training:
             step_toggle_rect = pygame.Rect(
-                board_w + 20, HEADER_HEIGHT + 360, SIDEBAR_WIDTH - 40, 45
+                board_w + 20, HEADER_HEIGHT + 285, SIDEBAR_WIDTH - 40, 45
             )
             pygame.draw.rect(screen, COLOR_BG_DARK, step_toggle_rect)
             pygame.draw.rect(
@@ -815,6 +958,20 @@ def run_game(
             pygame.draw.rect(screen, (255, 255, 255), step_knob_rect)
 
         if not training:
+            # Draw Training div
+            training_rect = pygame.Rect(
+                board_w + 20, HEADER_HEIGHT + 455, SIDEBAR_WIDTH - 40, 180
+            )
+            pygame.draw.rect(screen, COLOR_BG_DARK, training_rect)
+            pygame.draw.rect(screen, COLOR_DIVIDER, training_rect, 1)
+
+            lbl_training = font_title_sm.render("TRAINING", True, COLOR_TEXT_PRIMARY)
+            screen.blit(lbl_training, (training_rect.x + 15, training_rect.y + 15))
+
+            slider_train_sessions.x = training_rect.x + 15
+            slider_train_sessions.y = training_rect.y + 80
+            slider_train_sessions.width = training_rect.width - 30
+
             # Draw Train Sessions Slider
             slider_train_sessions.draw(
                 screen,
@@ -828,7 +985,7 @@ def run_game(
             # Draw "TRAIN SESSIONS" Button (simple flat rustic button)
             mouse_pos = pygame.mouse.get_pos()
             btn_train_rect = pygame.Rect(
-                board_w + 20, HEADER_HEIGHT + 490, SIDEBAR_WIDTH - 40, 40
+                board_w + 35, HEADER_HEIGHT + 575, SIDEBAR_WIDTH - 70, 40
             )
             is_train_hovered = btn_train_rect.collidepoint(mouse_pos)
             btn_train_color = (90, 90, 90) if is_train_hovered else (60, 60, 60)
@@ -842,29 +999,61 @@ def run_game(
             btn_train_text_rect = btn_train_text.get_rect(center=btn_train_rect.center)
             screen.blit(btn_train_text, btn_train_text_rect)
 
+            if qtable_dropdown_open:
+                dropdown_rect = pygame.Rect(
+                    board_w + 20, HEADER_HEIGHT + 395, SIDEBAR_WIDTH - 40, 36
+                )
+                for idx, path in enumerate(qtable_files[:5]):
+                    option_rect = pygame.Rect(
+                        dropdown_rect.x,
+                        dropdown_rect.y - (idx + 1) * 28,
+                        dropdown_rect.width,
+                        28,
+                    )
+                    option_color = (
+                        (55, 55, 55) if idx == selected_qtable_index else COLOR_BG_DARK
+                    )
+                    pygame.draw.rect(screen, option_color, option_rect)
+                    pygame.draw.rect(screen, COLOR_DIVIDER, option_rect, 1)
+                    option_label = _qtable_label(path)
+                    if len(option_label) > max_label_chars:
+                        option_label = option_label[: max_label_chars - 1] + "…"
+                    option_text = font_subtitle.render(
+                        option_label, True, COLOR_TEXT_PRIMARY
+                    )
+                    screen.blit(
+                        option_text,
+                        (
+                            option_rect.x + 12,
+                            option_rect.y
+                            + (option_rect.height - option_text.get_height()) // 2,
+                        ),
+                    )
+
         if ai_mode:
-            # Telemetry header
-            tel_y = HEADER_HEIGHT + 360 if training else HEADER_HEIGHT + 550
+            # Telemetry below the game board
+            tel_x = 20
+            tel_y = HEADER_HEIGHT + board_h + 20
             lbl_tel = font_title_sm.render("TELEMETRY", True, COLOR_TEXT_PRIMARY)
-            screen.blit(lbl_tel, (board_w + 20, tel_y))
+            screen.blit(lbl_tel, (tel_x, tel_y))
 
             if training:
                 lbl_ep = font_subtitle.render(
                     f"Episode: {episode}/{episodes}", True, COLOR_TEXT_MUTED
                 )
-                screen.blit(lbl_ep, (board_w + 20, tel_y + 30))
+                screen.blit(lbl_ep, (tel_x, tel_y + 30))
 
                 lbl_eps = font_subtitle.render(
                     f"Epsilon: {agent.epsilon:.4f}", True, COLOR_TEXT_MUTED
                 )
-                screen.blit(lbl_eps, (board_w + 20, tel_y + 55))
+                screen.blit(lbl_eps, (tel_x, tel_y + 55))
 
                 lbl_states = font_subtitle.render(
                     f"Unique States: {len(agent.q_table.table)}",
                     True,
                     COLOR_GREEN_APPLE,
                 )
-                screen.blit(lbl_states, (board_w + 20, tel_y + 80))
+                screen.blit(lbl_states, (tel_x, tel_y + 80))
             else:
                 # Extract features for display
                 feats = StateFeatures.from_game_state(state)
@@ -884,7 +1073,7 @@ def run_game(
                 lbl_danger = font_subtitle.render(
                     f"Danger: {danger_text}", True, COLOR_TEXT_MUTED
                 )
-                screen.blit(lbl_danger, (board_w + 20, tel_y + 30))
+                screen.blit(lbl_danger, (tel_x, tel_y + 30))
 
                 # Show green apple direction
                 apple_str_list = []
@@ -901,7 +1090,7 @@ def run_game(
                 lbl_apple = font_subtitle.render(
                     f"Green Apple: {apple_str}", True, COLOR_TEXT_MUTED
                 )
-                screen.blit(lbl_apple, (board_w + 20, tel_y + 55))
+                screen.blit(lbl_apple, (tel_x, tel_y + 55))
 
                 # Show chosen action and Q-value
                 action_id, q_val = agent.q_table.get_best_action_value(feats)
@@ -911,12 +1100,12 @@ def run_game(
                 lbl_act = font_subtitle.render(
                     f"Next Action: {act_name}", True, COLOR_GREEN_APPLE
                 )
-                screen.blit(lbl_act, (board_w + 20, tel_y + 80))
+                screen.blit(lbl_act, (tel_x, tel_y + 80))
 
                 lbl_q = font_subtitle.render(
                     f"Action Q-Val: {q_val:.2f}", True, COLOR_GREEN_APPLE
                 )
-                screen.blit(lbl_q, (board_w + 20, tel_y + 105))
+                screen.blit(lbl_q, (tel_x, tel_y + 105))
 
         # ----------------- DRAW WAITING TO START OVERLAY -----------------
         if not game_started and not ai_mode and not state.is_game_over:

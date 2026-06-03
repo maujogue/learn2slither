@@ -23,6 +23,7 @@ def setup_test_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "path",
         type=str,
+        nargs="?",
         default=None,
         help="Path to load the Q-table",
     )
@@ -37,6 +38,27 @@ def setup_test_args(parser: argparse.ArgumentParser) -> None:
         help="Play manually (reverts autopilot default)",
     )
 
+
+def get_models_dir() -> str:
+    """Return the project-level models directory."""
+    root_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    return os.path.join(root_dir, "models")
+
+
+def first_model_file(models_dir: str) -> str | None:
+    """Return the first JSON model file in models_dir, sorted by name."""
+    try:
+        names = sorted(os.listdir(models_dir))
+    except OSError:
+        return None
+
+    for name in names:
+        path = os.path.join(models_dir, name)
+        if name.endswith(".json") and os.path.isfile(path):
+            return path
+    return None
 
 def train(args: argparse.Namespace) -> None:
     """Sub-function to handle the training flow."""
@@ -151,18 +173,20 @@ def test(args: argparse.Namespace) -> None:
     height = max(5, min(25, args.height))
     speed = max(1, min(1000, args.speed))
 
-    # Resolve models directory at the root of the project
-    root_dir = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    )
-    models_dir = os.path.join(root_dir, "models")
+    models_dir = get_models_dir()
     os.makedirs(models_dir, exist_ok=True)
 
-    # Warn if Q-table does not exist when not manual testing
-    if not args.manual and not os.path.exists(args.path):
-        print(
-            f"⚠️ Warning: Q-table file '{args.path}' does not exist."
-        )
+    qtable_path = args.path
+    if args.headless and not args.manual and qtable_path is None:
+        raise SystemExit("test --headless requires a Q-table path")
+    if not args.headless and not args.manual and qtable_path is None:
+        qtable_path = first_model_file(models_dir)
+        if qtable_path is not None:
+            print(f"Loaded first model from '{qtable_path}'")
+
+    # Warn if Q-table does not exist when not manual testing and no GUI fallback is possible.
+    if not args.manual and qtable_path is not None and not os.path.exists(qtable_path):
+        print(f"⚠️ Warning: Q-table file '{qtable_path}' does not exist.")
         return
 
     if args.headless:
@@ -176,7 +200,7 @@ def test(args: argparse.Namespace) -> None:
             scores = run_headless_autopilot(
                 width=width,
                 height=height,
-                qtable_path=args.path,
+                qtable_path=qtable_path,
                 runs=args.runs,
             )
             mean_score = sum(scores) / len(scores)
@@ -190,7 +214,7 @@ def test(args: argparse.Namespace) -> None:
             initial_width=width,
             initial_height=height,
             initial_speed=speed,
-            qtable_path=args.path,
+            qtable_path=qtable_path,
             autopilot=autopilot,
         )
 
