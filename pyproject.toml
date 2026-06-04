@@ -19,4 +19,4 @@ build-backend = "uv_build"
 mlp-core = { git = "https://github.com/maujogue/mlp-core.git" }
 
 [project.scripts]
-l2s = "learn2slither.main:main"
+l2s = "learn2slither.commands.app:main"

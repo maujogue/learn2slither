@@ -2,193 +2,27 @@ import math
 import os
 import sys
 import pygame
-from learn2slither.models import Direction, GameOverReason, create_initial_game
-from learn2slither.cli import print_vision_grid
-from learn2slither.agent import NeuralStateFeatures, StateFeatures, action_to_direction, compute_reward, create_agent, get_min_green_dist
+from learn2slither.core import Direction, GameOverReason, create_initial_game
+from learn2slither.runtime.terminal import print_vision_grid
+from learn2slither.agents import NeuralStateFeatures, StateFeatures, action_to_direction, compute_reward, create_agent, get_min_green_dist
 
-# UI Constants
-CELL_SIZE = 40  # Cell size for standard square layout
-GRID_WIDTH = 10
-GRID_HEIGHT = 10
-BOARD_WIDTH = GRID_WIDTH * CELL_SIZE
-BOARD_HEIGHT = GRID_HEIGHT * CELL_SIZE
-HEADER_HEIGHT = 80
-
-WINDOW_WIDTH = BOARD_WIDTH
-WINDOW_HEIGHT = BOARD_HEIGHT + HEADER_HEIGHT
-
-# Palette (Rustic Retro Monochrome/Green theme - no fancy gradients or slate-indigo)
-COLOR_BG_DARK = (20, 20, 20)  # Near black
-COLOR_HEADER_BG = (35, 35, 35)  # Dark gray
-COLOR_GRID_LINE = (45, 45, 45)  # Muted grid line
-COLOR_DIVIDER = (70, 70, 70)  # Gray divider line
-COLOR_TEXT_PRIMARY = (230, 230, 230)  # Off-white / light gray
-COLOR_TEXT_MUTED = (160, 160, 160)  # Muted gray
-
-# Snake & Apple (Solid, simple colors - no gloss, reflections or fancy gradients)
-COLOR_SNAKE_HEAD = (30, 100, 200)  # Darker rustic blue for head
-COLOR_SNAKE_BODY = (70, 150, 220)  # Lighter rustic blue for body
-COLOR_SNAKE_TAIL = COLOR_SNAKE_BODY  # Keep reference for compatibility
-COLOR_GREEN_APPLE = (0, 200, 0)  # Solid green apple
-COLOR_RED_APPLE = (200, 0, 0)  # Solid red apple
-COLOR_ALERT = (200, 0, 0)  # Red alert
-
-
-
-
-def _get_default_model_paths(model_path: str | None, engine: str) -> list[str]:
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    default_name = "q_table.json" if engine == "q" else "dqn.json"
-    candidates = [
-        os.path.join(root_dir, "models", default_name),
-        os.path.join(os.path.dirname(__file__), default_name),
-    ]
-    if model_path:
-        candidates.insert(0, model_path)
-
-    seen: set[str] = set()
-    paths: list[str] = []
-    for path in candidates:
-        normalized = os.path.abspath(path)
-        if normalized not in seen:
-            seen.add(normalized)
-            paths.append(normalized)
-    return paths
-
-
-def _discover_model_files(model_path: str | None, engine: str) -> list[str]:
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    dirs = [os.path.join(root_dir, "models"), os.path.dirname(__file__)]
-    paths = _get_default_model_paths(model_path, engine)
-    seen = {os.path.abspath(path) for path in paths}
-
-    for directory in dirs:
-        try:
-            names = os.listdir(directory)
-        except OSError:
-            continue
-        for name in sorted(names):
-            if not name.endswith(".json"):
-                continue
-            path = os.path.abspath(os.path.join(directory, name))
-            if path in seen:
-                continue
-            seen.add(path)
-            paths.append(path)
-
-    return [path for path in paths if os.path.exists(path)]
-
-
-def _model_label(path: str) -> str:
-    return os.path.basename(path) or path
-class Slider:
-    def __init__(
-        self,
-        x: int,
-        y: int,
-        width: int,
-        min_val: int,
-        max_val: int,
-        current_val: int,
-        label: str,
-        is_exponential: bool = False,
-        ticks: list[int] | None = None,
-    ):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.min_val = min_val
-        self.max_val = max_val
-        self.current_val = current_val
-        self.label = label
-        self.is_exponential = is_exponential
-        self.ticks = ticks
-        self.is_dragging = False
-
-    def draw(self, screen, font_label, font_val, text_color, track_color, handle_color):
-        # Draw label
-        lbl_surf = font_label.render(self.label, True, text_color)
-        screen.blit(lbl_surf, (self.x, self.y - 22))
-
-        # Draw current value
-        val_surf = font_val.render(str(self.current_val), True, handle_color)
-        screen.blit(val_surf, (self.x + self.width - val_surf.get_width(), self.y - 22))
-
-        # Draw track
-        pygame.draw.line(
-            screen, track_color, (self.x, self.y), (self.x + self.width, self.y), 4
-        )
-
-        # Draw ticks if present
-        if self.ticks:
-            for tick in self.ticks:
-                if self.is_exponential:
-                    if tick <= 0 or self.min_val <= 0:
-                        continue
-                    fraction = math.log(tick / self.min_val) / math.log(
-                        self.max_val / self.min_val
-                    )
-                else:
-                    fraction = (tick - self.min_val) / (self.max_val - self.min_val)
-
-                tick_x = self.x + int(fraction * self.width)
-                # Draw a small vertical tick line
-                pygame.draw.line(
-                    screen, track_color, (tick_x, self.y - 5), (tick_x, self.y + 5), 2
-                )
-
-                # Draw a tiny tick value text below the track
-                tick_val_surf = font_val.render(str(tick), True, text_color)
-                screen.blit(
-                    tick_val_surf, (tick_x - tick_val_surf.get_width() // 2, self.y + 8)
-                )
-
-        # Draw handle as a simple full square block (no circles)
-        if self.is_exponential:
-            val = max(self.min_val, min(self.max_val, self.current_val))
-            fraction = math.log(val / self.min_val) / math.log(
-                self.max_val / self.min_val
-            )
-        else:
-            fraction = (self.current_val - self.min_val) / (self.max_val - self.min_val)
-
-        handle_x = self.x + int(fraction * self.width)
-        handle_rect = pygame.Rect(handle_x - 6, self.y - 8, 12, 16)
-        pygame.draw.rect(screen, handle_color, handle_rect)
-
-    def handle_event(self, event, mouse_pos) -> bool:
-        """Returns True if the value changed."""
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                # Check if click is on the track/handle area
-                track_rect = pygame.Rect(self.x - 10, self.y - 12, self.width + 20, 24)
-                if track_rect.collidepoint(mouse_pos):
-                    self.is_dragging = True
-                    old_val = self.current_val
-                    self.update_val_from_mouse(mouse_pos[0])
-                    return self.current_val != old_val
-
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:
-                self.is_dragging = False
-
-        elif event.type == pygame.MOUSEMOTION:
-            if self.is_dragging:
-                old_val = self.current_val
-                self.update_val_from_mouse(mouse_pos[0])
-                return self.current_val != old_val
-
-        return False
-
-    def update_val_from_mouse(self, mouse_x: int):
-        rel_x = max(0, min(self.width, mouse_x - self.x))
-        fraction = rel_x / self.width
-        if self.is_exponential:
-            raw_val = self.min_val * ((self.max_val / self.min_val) ** fraction)
-        else:
-            raw_val = self.min_val + fraction * (self.max_val - self.min_val)
-        self.current_val = int(round(raw_val))
-
+from learn2slither.pygame_ui.constants import (
+    CELL_SIZE,
+    HEADER_HEIGHT,
+    COLOR_BG_DARK,
+    COLOR_HEADER_BG,
+    COLOR_GRID_LINE,
+    COLOR_DIVIDER,
+    COLOR_TEXT_PRIMARY,
+    COLOR_TEXT_MUTED,
+    COLOR_SNAKE_HEAD,
+    COLOR_SNAKE_BODY,
+    COLOR_GREEN_APPLE,
+    COLOR_RED_APPLE,
+    COLOR_ALERT
+)
+from learn2slither.pygame_ui.models import _discover_model_files, _model_label
+from learn2slither.pygame_ui.widgets import Slider
 
 def run_game(
     initial_width: int = 10,
