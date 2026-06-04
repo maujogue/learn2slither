@@ -4,7 +4,7 @@ import sys
 import pygame
 from learn2slither.models import Direction, GameOverReason, create_initial_game
 from learn2slither.cli import print_vision_grid
-from learn2slither.agent import QLearningAgent, StateFeatures
+from learn2slither.agent import NeuralStateFeatures, StateFeatures, action_to_direction, compute_reward, create_agent, get_min_green_dist
 
 # UI Constants
 CELL_SIZE = 40  # Cell size for standard square layout
@@ -36,14 +36,15 @@ COLOR_ALERT = (200, 0, 0)  # Red alert
 
 
 
-def _get_default_qtable_paths(qtable_path: str | None) -> list[str]:
+def _get_default_model_paths(model_path: str | None, engine: str) -> list[str]:
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    default_name = "q_table.json" if engine == "q" else "dqn.json"
     candidates = [
-        os.path.join(root_dir, "models", "q_table.json"),
-        os.path.join(os.path.dirname(__file__), "q_table.json"),
+        os.path.join(root_dir, "models", default_name),
+        os.path.join(os.path.dirname(__file__), default_name),
     ]
-    if qtable_path:
-        candidates.insert(0, qtable_path)
+    if model_path:
+        candidates.insert(0, model_path)
 
     seen: set[str] = set()
     paths: list[str] = []
@@ -55,10 +56,10 @@ def _get_default_qtable_paths(qtable_path: str | None) -> list[str]:
     return paths
 
 
-def _discover_qtable_files(qtable_path: str | None) -> list[str]:
+def _discover_model_files(model_path: str | None, engine: str) -> list[str]:
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     dirs = [os.path.join(root_dir, "models"), os.path.dirname(__file__)]
-    paths = _get_default_qtable_paths(qtable_path)
+    paths = _get_default_model_paths(model_path, engine)
     seen = {os.path.abspath(path) for path in paths}
 
     for directory in dirs:
@@ -78,7 +79,7 @@ def _discover_qtable_files(qtable_path: str | None) -> list[str]:
     return [path for path in paths if os.path.exists(path)]
 
 
-def _qtable_label(path: str) -> str:
+def _model_label(path: str) -> str:
     return os.path.basename(path) or path
 class Slider:
     def __init__(
@@ -193,7 +194,8 @@ def run_game(
     initial_width: int = 10,
     initial_height: int = 10,
     initial_speed: int = 6,
-    qtable_path: str | None = None,
+    model_path: str | None = None,
+    engine: str = "q",
     autopilot: bool = True,
     training: bool = False,
     episodes: int = 15000,
@@ -213,12 +215,6 @@ def run_game(
         win_h = max(board_h + HEADER_HEIGHT + TELEMETRY_HEIGHT, 800)
         return win_w, win_h, board_w, board_h
 
-    def get_min_green_dist(s) -> float:
-        if not s.green_apples:
-            return 0.0
-        h = s.snake.head
-        return min(abs(a.x - h.x) + abs(a.y - h.y) for a in s.green_apples)
-
     # Initialize current dimensions and speed
     grid_width = initial_width
     grid_height = initial_height
@@ -231,15 +227,15 @@ def run_game(
     screen = pygame.display.set_mode((win_w, win_h))
     clock = pygame.time.Clock()
 
-    # Initialize agent and load pretrained Q-table
-    agent = QLearningAgent()
-    qtable_files = _discover_qtable_files(qtable_path)
-    if qtable_path is None and qtable_files:
-        qtable_path = qtable_files[0]
-    qtable_existed_before_training = bool(qtable_path and os.path.exists(qtable_path))
-    if qtable_path:
-        agent.q_table.load_from_file(qtable_path)
-    ai_mode = autopilot and qtable_path is not None
+    # Initialize agent and load pretrained model
+    agent = create_agent(engine, training=training)
+    model_files = _discover_model_files(model_path, engine)
+    if model_path is None and model_files:
+        model_path = model_files[0]
+    model_existed_before_training = bool(model_path and os.path.exists(model_path))
+    if model_path:
+        agent.load_from_file(model_path)
+    ai_mode = autopilot and model_path is not None
 
     # Load rustic monospace fonts with system fallbacks
     font_title = pygame.font.SysFont(
@@ -307,33 +303,33 @@ def run_game(
         ticks=[10, 100, 500, 1000, 5000],
     )
 
-    qtable_files = _discover_qtable_files(qtable_path)
-    selected_qtable_index = 0
-    if qtable_path:
-        selected_path = os.path.abspath(qtable_path)
-        for idx, path in enumerate(qtable_files):
+    model_files = _discover_model_files(model_path, engine)
+    selected_model_index = 0
+    if model_path:
+        selected_path = os.path.abspath(model_path)
+        for idx, path in enumerate(model_files):
             if path == selected_path:
-                selected_qtable_index = idx
+                selected_model_index = idx
                 break
-    qtable_dropdown_open = False
+    model_dropdown_open = False
 
-    def reload_qtable_options() -> None:
-        nonlocal qtable_files, selected_qtable_index
-        qtable_files = _discover_qtable_files(qtable_path)
-        if qtable_path:
-            selected_path = os.path.abspath(qtable_path)
-            for idx, path in enumerate(qtable_files):
+    def reload_model_options() -> None:
+        nonlocal model_files, selected_model_index
+        model_files = _discover_model_files(model_path, engine)
+        if model_path:
+            selected_path = os.path.abspath(model_path)
+            for idx, path in enumerate(model_files):
                 if path == selected_path:
-                    selected_qtable_index = idx
+                    selected_model_index = idx
                     return
-        selected_qtable_index = 0
+        selected_model_index = 0
 
-    def select_qtable(path: str) -> None:
-        nonlocal qtable_path, qtable_existed_before_training
-        qtable_path = path
-        qtable_existed_before_training = os.path.exists(path)
-        agent.q_table.load_from_file(path)
-        print(f"Loaded Q-table from '{path}' for autopilot.")
+    def select_model(path: str) -> None:
+        nonlocal model_path, model_existed_before_training
+        model_path = path
+        model_existed_before_training = os.path.exists(path)
+        agent.load_from_file(path)
+        print(f"Loaded model from '{path}' for autopilot.")
 
     # Print initial state vision matrix
     print("\n" + "=" * 60)
@@ -352,7 +348,7 @@ def run_game(
             last_dist, \
             episode, \
             running, \
-            qtable_path, \
+            model_path, \
             training, \
             ai_mode, \
             gui_initiated_training
@@ -362,17 +358,11 @@ def run_game(
         agent_choice = None
         if training:
             # Extract absolute features
-            curr_features = StateFeatures.from_game_state(state)
+            curr_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
             # Choose action (training exploration)
             action = agent.get_action(curr_features, training=True)
             # Translate absolute action to direction
-            action_to_dir = {
-                0: Direction.UP,
-                1: Direction.LEFT,
-                2: Direction.DOWN,
-                3: Direction.RIGHT,
-            }
-            new_dir = action_to_dir[action]
+            new_dir = action_to_direction(action)
             state.change_direction(new_dir)
             agent_choice = new_dir.name
 
@@ -380,49 +370,28 @@ def run_game(
             state.step()
 
             # Observe new state and reward
-            next_features = StateFeatures.from_game_state(state)
+            next_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
             done = state.is_game_over
 
             # Compute reward
-            reward = 0.0
-            if done:
-                reward = -100.0  # Heavy crash penalty
-            else:
-                new_len = len(state.snake.body)
-                if new_len > score:
-                    reward = 100.0  # High reward for growing
-                    score = new_len
-                elif new_len < score:
-                    reward = -30.0  # Penalty for shrinking (eating a red apple)
-                    score = new_len
-                else:
-                    # Survival reward
-                    reward = 1.0
+            reward, score, last_dist = compute_reward(state, score, last_dist, engine)
 
-                    # Dense distance-based reward
-                    new_dist = get_min_green_dist(state)
-                    if new_dist < last_dist:
-                        reward += 10.0  # Reward for moving closer to green apple
-                    elif new_dist > last_dist:
-                        reward -= 15.0  # Penalty for moving away from green apple
-                    last_dist = new_dist
-
-            # Update Q-table
+            # Update model
             agent.update(curr_features, action, reward, next_features, done)
 
             if done:
                 agent.decay_epsilon()
-                if qtable_path:
-                    agent.q_table.save_to_file(qtable_path)
+                if model_path:
+                    agent.save_to_file(model_path)
 
                 episode += 1
                 if episode > episodes:
                     import re
 
-                    new_qtable_path = qtable_path
+                    new_model_path = model_path
                     new_sessions = episodes
-                    if qtable_path and qtable_existed_before_training:
-                        basename = os.path.basename(qtable_path)
+                    if model_path and model_existed_before_training:
+                        basename = os.path.basename(model_path)
                         match = re.search(r"(\d+)", basename)
                         if match:
                             existing_sessions = int(match.group(1))
@@ -430,48 +399,48 @@ def run_game(
                             new_basename = basename.replace(
                                 str(existing_sessions), str(new_sessions), 1
                             )
-                            new_qtable_path = os.path.join(
-                                os.path.dirname(qtable_path), new_basename
+                            new_model_path = os.path.join(
+                                os.path.dirname(model_path), new_basename
                             )
                         else:
                             new_sessions = episodes
                             name, ext = os.path.splitext(basename)
                             new_basename = f"{name}_{episodes}{ext}"
-                            new_qtable_path = os.path.join(
-                                os.path.dirname(qtable_path), new_basename
+                            new_model_path = os.path.join(
+                                os.path.dirname(model_path), new_basename
                             )
                     else:
-                        if not qtable_path:
+                        if not model_path:
                             root_dir = os.path.dirname(
                                 os.path.dirname(
                                     os.path.dirname(os.path.abspath(__file__))
                                 )
                             )
-                            new_qtable_path = os.path.join(
-                                root_dir, "models", f"q_table_{episodes}.json"
+                            new_model_path = os.path.join(
+                                root_dir, "models", f"{'q_table' if engine == 'q' else 'dqn'}_{episodes}.json"
                             )
                         else:
-                            new_qtable_path = qtable_path
+                            new_model_path = model_path
                         new_sessions = episodes
 
                     if (
-                        qtable_path
-                        and os.path.exists(qtable_path)
-                        and new_qtable_path != qtable_path
+                        model_path
+                        and os.path.exists(model_path)
+                        and new_model_path != model_path
                     ):
                         try:
-                            os.rename(qtable_path, new_qtable_path)
+                            os.rename(model_path, new_model_path)
                             print(
-                                f"Renamed Q-table file to '{new_qtable_path}' to reflect final sessions ({new_sessions})."
+                                f"Renamed model file to '{new_model_path}' to reflect final sessions ({new_sessions})."
                             )
                         except OSError as e:
                             print(f"⚠️ Warning: Could not rename file: {e}")
 
-                    qtable_path = new_qtable_path
-                    agent.q_table.save_to_file(qtable_path)
-                    reload_qtable_options()
+                    model_path = new_model_path
+                    agent.save_to_file(model_path)
+                    reload_model_options()
                     print(
-                        f"🎉 Training of {episodes} episodes completed! Trained Q-table saved/renamed to '{qtable_path}'."
+                        f"🎉 Training of {episodes} episodes completed! Trained model saved/renamed to '{model_path}'."
                     )
 
                     if gui_initiated_training:
@@ -494,17 +463,11 @@ def run_game(
         else:
             if ai_mode:
                 # Extract absolute features
-                curr_features = StateFeatures.from_game_state(state)
+                curr_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
                 # Choose action
                 action = agent.get_action(curr_features, training=False)
                 # Translate absolute action to direction
-                action_to_dir = {
-                    0: Direction.UP,
-                    1: Direction.LEFT,
-                    2: Direction.DOWN,
-                    3: Direction.RIGHT,
-                }
-                new_dir = action_to_dir[action]
+                new_dir = action_to_direction(action)
                 state.change_direction(new_dir)
                 agent_choice = new_dir.name
 
@@ -618,10 +581,10 @@ def run_game(
                     )
                     if not training and toggle_rect.collidepoint(mouse_pos):
                         if not ai_mode:
-                            reload_qtable_options()
-                            if qtable_path is None and qtable_files:
-                                select_qtable(qtable_files[selected_qtable_index])
-                        if qtable_path is not None:
+                            reload_model_options()
+                            if model_path is None and model_files:
+                                select_model(model_files[selected_model_index])
+                        if model_path is not None:
                             ai_mode = not ai_mode
                             if ai_mode:
                                 game_started = True
@@ -636,22 +599,22 @@ def run_game(
                             dropdown_rect.width,
                             28,
                         )
-                        for i in range(min(len(qtable_files), 5))
+                        for i in range(min(len(model_files), 5))
                     ]
                     if not training and dropdown_rect.collidepoint(mouse_pos):
-                        reload_qtable_options()
-                        qtable_dropdown_open = not qtable_dropdown_open
-                    elif not training and qtable_dropdown_open:
+                        reload_model_options()
+                        model_dropdown_open = not model_dropdown_open
+                    elif not training and model_dropdown_open:
                         clicked_option = False
                         for idx, option_rect in enumerate(option_rects):
                             if option_rect.collidepoint(mouse_pos):
-                                selected_qtable_index = idx
-                                select_qtable(qtable_files[idx])
-                                qtable_dropdown_open = False
+                                selected_model_index = idx
+                                select_model(model_files[idx])
+                                model_dropdown_open = False
                                 clicked_option = True
                                 break
                         if not clicked_option:
-                            qtable_dropdown_open = False
+                            model_dropdown_open = False
 
                     # Check Step-by-step toggle click
                     step_toggle_rect = pygame.Rect(
@@ -845,7 +808,7 @@ def run_game(
             toggle_rect = pygame.Rect(
                 board_w + 20, HEADER_HEIGHT + 345, SIDEBAR_WIDTH - 40, 45
             )
-            autopilot_available = qtable_path is not None or bool(qtable_files)
+            autopilot_available = model_path is not None or bool(model_files)
             pygame.draw.rect(screen, COLOR_BG_DARK, toggle_rect)
             pygame.draw.rect(screen, COLOR_DIVIDER, toggle_rect, 1)  # Outline border
 
@@ -882,26 +845,26 @@ def run_game(
             pygame.draw.rect(screen, COLOR_BG_DARK, dropdown_rect)
             pygame.draw.rect(screen, COLOR_DIVIDER, dropdown_rect, 1)
 
-            if qtable_files:
-                selected_label = _qtable_label(qtable_files[selected_qtable_index])
+            if model_files:
+                selected_label = _model_label(model_files[selected_model_index])
             else:
-                selected_label = "No Q-table files"
+                selected_label = "No model files"
             max_label_chars = 25
             if len(selected_label) > max_label_chars:
                 selected_label = selected_label[: max_label_chars - 1] + "…"
-            qtable_label_color = COLOR_TEXT_PRIMARY if qtable_files else COLOR_TEXT_MUTED
-            qtable_text = font_subtitle.render(
-                selected_label, True, qtable_label_color
+            model_label_color = COLOR_TEXT_PRIMARY if model_files else COLOR_TEXT_MUTED
+            model_text = font_subtitle.render(
+                selected_label, True, model_label_color
             )
             screen.blit(
-                qtable_text,
+                model_text,
                 (
                     dropdown_rect.x + 12,
-                    dropdown_rect.y + (dropdown_rect.height - qtable_text.get_height())
+                    dropdown_rect.y + (dropdown_rect.height - model_text.get_height())
                     // 2,
                 ),
             )
-            arrow_text = "▲" if qtable_dropdown_open else "▼"
+            arrow_text = "▲" if model_dropdown_open else "▼"
             arrow = font_subtitle.render(arrow_text, True, COLOR_TEXT_MUTED)
             screen.blit(
                 arrow,
@@ -999,11 +962,11 @@ def run_game(
             btn_train_text_rect = btn_train_text.get_rect(center=btn_train_rect.center)
             screen.blit(btn_train_text, btn_train_text_rect)
 
-            if qtable_dropdown_open:
+            if model_dropdown_open:
                 dropdown_rect = pygame.Rect(
                     board_w + 20, HEADER_HEIGHT + 395, SIDEBAR_WIDTH - 40, 36
                 )
-                for idx, path in enumerate(qtable_files[:5]):
+                for idx, path in enumerate(model_files[:5]):
                     option_rect = pygame.Rect(
                         dropdown_rect.x,
                         dropdown_rect.y - (idx + 1) * 28,
@@ -1011,11 +974,11 @@ def run_game(
                         28,
                     )
                     option_color = (
-                        (55, 55, 55) if idx == selected_qtable_index else COLOR_BG_DARK
+                        (55, 55, 55) if idx == selected_model_index else COLOR_BG_DARK
                     )
                     pygame.draw.rect(screen, option_color, option_rect)
                     pygame.draw.rect(screen, COLOR_DIVIDER, option_rect, 1)
-                    option_label = _qtable_label(path)
+                    option_label = _model_label(path)
                     if len(option_label) > max_label_chars:
                         option_label = option_label[: max_label_chars - 1] + "…"
                     option_text = font_subtitle.render(
@@ -1049,7 +1012,7 @@ def run_game(
                 screen.blit(lbl_eps, (tel_x, tel_y + 55))
 
                 lbl_states = font_subtitle.render(
-                    f"Unique States: {len(agent.q_table.table)}",
+                    f"Unique States: {len(agent.model.table)}",
                     True,
                     COLOR_GREEN_APPLE,
                 )
@@ -1093,7 +1056,8 @@ def run_game(
                 screen.blit(lbl_apple, (tel_x, tel_y + 55))
 
                 # Show chosen action and Q-value
-                action_id, q_val = agent.q_table.get_best_action_value(feats)
+                policy_feats = NeuralStateFeatures.from_game_state(state) if engine == "nn" else feats
+                action_id, q_val = agent.best_action_value(policy_feats)
                 action_names = {0: "UP", 1: "LEFT", 2: "DOWN", 3: "RIGHT"}
                 act_name = action_names.get(action_id, "UP")
 
@@ -1180,9 +1144,9 @@ def run_game(
         pygame.display.flip()
         clock.tick(60)  # Limit rendering frames per second
 
-    if training and qtable_path:
-        agent.q_table.save_to_file(qtable_path)
-        print(f"🎉 Progress saved to '{qtable_path}' before exit.")
+    if training and model_path:
+        agent.save_to_file(model_path)
+        print(f"🎉 Progress saved to '{model_path}' before exit.")
 
     pygame.quit()
     sys.exit()

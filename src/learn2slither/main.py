@@ -1,5 +1,5 @@
-import os
 import argparse
+import os
 
 
 def setup_train_args(parser: argparse.ArgumentParser) -> None:
@@ -8,13 +8,19 @@ def setup_train_args(parser: argparse.ArgumentParser) -> None:
         "--path",
         type=str,
         default=None,
-        help="Path to save the Q-table",
+        help="Path to save the trained model",
+    )
+    parser.add_argument(
+        "--engine",
+        choices=("q", "nn"),
+        default="q",
+        help="Training engine: q for Q-table, nn for custom MLP DQN",
     )
     parser.add_argument(
         "--sessions",
         type=int,
         required=True,
-        help="Number of training sessions (episodes) to do",
+        help="Number of training sessions/iterations to do",
     )
 
 
@@ -25,17 +31,45 @@ def setup_test_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         nargs="?",
         default=None,
-        help="Path to load the Q-table",
+        help="Path to load the trained model",
+    )
+    parser.add_argument(
+        "--engine",
+        choices=("q", "nn"),
+        default="q",
+        help="Testing engine: q for Q-table, nn for custom MLP DQN",
     )
     parser.add_argument(
         "--runs",
         type=int,
-        help="Number of experiments (runs) to do, returning the results and mean",
+        help="Number of experiments (runs) to do, returning the results and summary metrics",
     )
     parser.add_argument(
         "--manual",
         action="store_true",
         help="Play manually (reverts autopilot default)",
+    )
+
+
+def setup_benchmark_args(parser: argparse.ArgumentParser) -> None:
+    """Helper to add options specific to benchmarking all saved models."""
+    parser.add_argument(
+        "--engine",
+        choices=("all", "q", "nn"),
+        default="all",
+        help="Model type to benchmark, or all for every known model type",
+    )
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=300,
+        help="Number of headless games to run per model",
+    )
+    parser.add_argument(
+        "--top",
+        type=int,
+        default=3,
+        help="Number of best models to print",
     )
 
 
@@ -60,6 +94,105 @@ def first_model_file(models_dir: str) -> str | None:
             return path
     return None
 
+
+MODEL_ENGINE_SPECS = {
+    "q": (".json", ("q_table", "q-")),
+    "nn": (".json", ("dqn", "nn-")),
+}
+
+
+def model_engine_for_path(path: str) -> str | None:
+    """Return the engine implied by a model file name, if it is known."""
+    name = os.path.basename(path).lower()
+    for engine, (extension, prefixes) in MODEL_ENGINE_SPECS.items():
+        if name.endswith(extension) and name.startswith(prefixes):
+            return engine
+    return None
+
+
+def find_model_files(models_dir: str, engine: str = "all") -> list[tuple[str, str]]:
+    """Return discovered model files as (engine, path), sorted for stable output."""
+    try:
+        names = sorted(os.listdir(models_dir))
+    except OSError:
+        return []
+
+    models = []
+    for name in names:
+        path = os.path.join(models_dir, name)
+        if not os.path.isfile(path):
+            continue
+        detected_engine = model_engine_for_path(path)
+        if detected_engine is None:
+            continue
+        if engine != "all" and detected_engine != engine:
+            continue
+        models.append((detected_engine, path))
+    return models
+
+
+def _mean_score(scores: list[int]) -> float:
+    """Return the arithmetic mean for a non-empty score list."""
+    if not scores:
+        raise ValueError("At least one completed run is required to calculate score metrics.")
+    return sum(scores) / len(scores)
+
+def _median_sorted(values: list[int]) -> float:
+    """Return the median for an already sorted non-empty list."""
+    midpoint = len(values) // 2
+    if len(values) % 2 == 1:
+        return float(values[midpoint])
+    return (values[midpoint - 1] + values[midpoint]) / 2
+
+
+def _quartiles_sorted(values: list[int]) -> tuple[float, float, float]:
+    """Return Q1, median, and Q3 using Tukey's hinges."""
+    median = _median_sorted(values)
+    midpoint = len(values) // 2
+    lower_half = values[:midpoint]
+    upper_half = values[midpoint + (len(values) % 2) :]
+    q1 = _median_sorted(lower_half) if lower_half else median
+    q3 = _median_sorted(upper_half) if upper_half else median
+    return q1, median, q3
+
+
+def _score_summary_lines(scores: list[int]) -> list[str]:
+    """Return human-readable summary statistics for completed test runs."""
+    if not scores:
+        raise ValueError("At least one completed run is required to calculate score metrics.")
+    sorted_scores = sorted(scores)
+    n_scores = len(sorted_scores)
+    mean_score = sum(sorted_scores) / n_scores
+    q1, median_score, q3 = _quartiles_sorted(sorted_scores)
+    minimum_score = sorted_scores[0]
+    maximum_score = sorted_scores[-1]
+    iqr = q3 - q1
+    low_outlier_limit = q1 - 1.5 * iqr
+    high_outlier_limit = q3 + 1.5 * iqr
+    outliers = [
+        score
+        for score in sorted_scores
+        if score < low_outlier_limit or score > high_outlier_limit
+    ]
+    top_count = max(1, (n_scores + 9) // 10)
+    top_scores = sorted_scores[-top_count:]
+    return [
+        f"Runs: {n_scores}",
+        f"Scores: {scores}",
+        f"Mean Score: {mean_score:.2f}",
+        f"Median Score: {median_score:.2f}",
+        f"Min Score: {minimum_score}",
+        f"Q1 Score: {q1:.2f}",
+        f"Q3 Score: {q3:.2f}",
+        f"Max Score: {maximum_score}",
+        f"IQR: {iqr:.2f}",
+        f"Outlier Bounds: < {low_outlier_limit:.2f} or > {high_outlier_limit:.2f}",
+        f"Outliers ({len(outliers)}): {outliers}",
+        f"Top 10% Count: {top_count}",
+        f"Top 10% Scores: {top_scores}",
+    ]
+
+
 def train(args: argparse.Namespace) -> None:
     """Sub-function to handle the training flow."""
     width = max(5, min(25, args.width))
@@ -73,17 +206,21 @@ def train(args: argparse.Namespace) -> None:
     models_dir = os.path.join(root_dir, "models")
     os.makedirs(models_dir, exist_ok=True)
 
-    qtable_path = args.path
-    if qtable_path is None:
-        qtable_path = os.path.join(models_dir, f"q_table_{args.sessions}.json")
+    model_path = args.path
+    if model_path is None:
+        if args.engine == "q":
+            prefix, ext = "q_table", "json"
+        else:
+            prefix, ext = "dqn", "json"
+        model_path = os.path.join(models_dir, f"{prefix}_{args.sessions}.{ext}")
 
     # If path already exists, prompt the user if they want to continue training or reset the file.
-    if os.path.exists(qtable_path):
+    if os.path.exists(model_path):
         while True:
             try:
                 response = (
                     input(
-                        f"⚠️ Q-table file '{qtable_path}' already exists.\n"
+                        f"⚠️ model file '{model_path}' already exists.\n"
                         "Do you want to [C]ontinue training or [R]eset/overwrite the file? (c/r): "
                     )
                     .strip()
@@ -94,10 +231,10 @@ def train(args: argparse.Namespace) -> None:
                 return
 
             if response in ("c", "continue"):
-                print("Continuing training from the existing Q-table...")
+                print("Continuing training from the existing model...")
                 import re
 
-                basename = os.path.basename(qtable_path)
+                basename = os.path.basename(model_path)
                 match = re.search(r"(\d+)", basename)
                 if match:
                     existing_sessions = int(match.group(1))
@@ -105,28 +242,28 @@ def train(args: argparse.Namespace) -> None:
                     new_basename = basename.replace(
                         str(existing_sessions), str(new_sessions), 1
                     )
-                    new_qtable_path = os.path.join(
-                        os.path.dirname(qtable_path), new_basename
+                    new_model_path = os.path.join(
+                        os.path.dirname(model_path), new_basename
                     )
                 else:
                     new_sessions = args.sessions
                     name, ext = os.path.splitext(basename)
                     new_basename = f"{name}_{args.sessions}{ext}"
-                    new_qtable_path = os.path.join(
-                        os.path.dirname(qtable_path), new_basename
+                    new_model_path = os.path.join(
+                        os.path.dirname(model_path), new_basename
                     )
 
-                if new_qtable_path != qtable_path:
-                    if os.path.exists(new_qtable_path):
+                if new_model_path != model_path:
+                    if os.path.exists(new_model_path):
                         print(
-                            f"⚠️ Note: Destination file '{new_qtable_path}' already exists and will be overwritten."
+                            f"⚠️ Note: Destination file '{new_model_path}' already exists and will be overwritten."
                         )
                     try:
-                        os.rename(qtable_path, new_qtable_path)
+                        os.rename(model_path, new_model_path)
                         print(
-                            f"Renamed Q-table file to '{new_qtable_path}' to reflect final sessions ({new_sessions})."
+                            f"Renamed model file to '{new_model_path}' to reflect final sessions ({new_sessions})."
                         )
-                        qtable_path = new_qtable_path
+                        model_path = new_model_path
                     except OSError as e:
                         print(
                             f"⚠️ Warning: Could not rename file to reflect new sessions: {e}"
@@ -134,10 +271,10 @@ def train(args: argparse.Namespace) -> None:
                 break
             elif response in ("r", "reset"):
                 print(
-                    "Resetting Q-table file. A new Q-table will be trained from scratch."
+                    "Resetting model file. A new model will be trained from scratch."
                 )
                 try:
-                    os.remove(qtable_path)
+                    os.remove(model_path)
                 except OSError as e:
                     print(f"Error removing existing file: {e}")
                 break
@@ -151,7 +288,8 @@ def train(args: argparse.Namespace) -> None:
             episodes=args.sessions,
             width=width,
             height=height,
-            save_path=qtable_path,
+            save_path=model_path,
+            engine=args.engine,
         )
     else:
         from learn2slither.board import run_game
@@ -160,7 +298,8 @@ def train(args: argparse.Namespace) -> None:
             initial_width=width,
             initial_height=height,
             initial_speed=speed,
-            qtable_path=qtable_path,
+            model_path=model_path,
+            engine=args.engine,
             autopilot=True,
             training=True,
             episodes=args.sessions,
@@ -176,17 +315,17 @@ def test(args: argparse.Namespace) -> None:
     models_dir = get_models_dir()
     os.makedirs(models_dir, exist_ok=True)
 
-    qtable_path = args.path
-    if args.headless and not args.manual and qtable_path is None:
-        raise SystemExit("test --headless requires a Q-table path")
-    if not args.headless and not args.manual and qtable_path is None:
-        qtable_path = first_model_file(models_dir)
-        if qtable_path is not None:
-            print(f"Loaded first model from '{qtable_path}'")
+    model_path = args.path
+    if args.headless and not args.manual and model_path is None:
+        raise SystemExit("test --headless requires a model path")
+    if not args.headless and not args.manual and model_path is None:
+        model_path = first_model_file(models_dir)
+        if model_path is not None:
+            print(f"Loaded first model from '{model_path}'")
 
-    # Warn if Q-table does not exist when not manual testing and no GUI fallback is possible.
-    if not args.manual and qtable_path is not None and not os.path.exists(qtable_path):
-        print(f"⚠️ Warning: Q-table file '{qtable_path}' does not exist.")
+    # Warn if model does not exist when not manual testing and no GUI fallback is possible.
+    if not args.manual and model_path is not None and not os.path.exists(model_path):
+        print(f"⚠️ Warning: model file '{model_path}' does not exist.")
         return
 
     if args.headless:
@@ -200,12 +339,12 @@ def test(args: argparse.Namespace) -> None:
             scores = run_headless_autopilot(
                 width=width,
                 height=height,
-                qtable_path=qtable_path,
+                model_path=model_path,
+                engine=args.engine,
                 runs=args.runs,
             )
-            mean_score = sum(scores) / len(scores)
-            print(f"Scores: {scores}")
-            print(f"Mean Score: {mean_score:.2f}")
+            for line in _score_summary_lines(scores):
+                print(line)
     else:
         from learn2slither.board import run_game
 
@@ -214,15 +353,57 @@ def test(args: argparse.Namespace) -> None:
             initial_width=width,
             initial_height=height,
             initial_speed=speed,
-            qtable_path=qtable_path,
+            model_path=model_path,
+            engine=args.engine,
             autopilot=autopilot,
+        )
+
+
+
+def benchmark(args: argparse.Namespace) -> None:
+    """Run every matching saved model headlessly and print the best performers."""
+    width = max(5, min(25, args.width))
+    height = max(5, min(25, args.height))
+    runs = max(1, args.runs)
+    top = max(1, args.top)
+
+    models = find_model_files(get_models_dir(), args.engine)
+    if not models:
+        raise SystemExit(f"No saved models found for engine '{args.engine}'.")
+
+    from learn2slither.cli import run_headless_autopilot
+
+    results = []
+    for engine, model_path in models:
+        print(f"Benchmarking [{engine}] {model_path}")
+        scores = run_headless_autopilot(
+            width=width,
+            height=height,
+            model_path=model_path,
+            engine=engine,
+            runs=runs,
+        )
+        mean_score = _mean_score(scores)
+        max_score = max(scores)
+        results.append((mean_score, max_score, engine, model_path, scores))
+        print(f"Mean Score: {mean_score:.2f} | Max Score: {max_score} | Scores: {scores}")
+
+    results.sort(key=lambda result: (-result[0], -result[1], result[3]))
+
+    print("\nBest Models")
+    for rank, (mean_score, max_score, engine, model_path, scores) in enumerate(
+        results[:top], start=1
+    ):
+        print(
+            f"{rank}. [{engine}] {model_path} "
+            f"(mean={mean_score:.2f}, max={max_score}, scores={scores})"
         )
 
 
 def main() -> None:
     """Launcher entry point for the snake game.
 
-    Accepts subcommands 'train' or 'test'.
+    Accepts subcommands 'train', 'test', or 'benchmark'.
     """
     parser = argparse.ArgumentParser(description="Learn2Slither - Playable Snake Game")
 
@@ -261,12 +442,22 @@ def main() -> None:
     )
     setup_test_args(test_parser)
 
+    # Benchmark subcommand
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        parents=[parent_parser],
+        help="Run every saved model of one type or all types and rank the best models",
+    )
+    setup_benchmark_args(benchmark_parser)
+
     args = parser.parse_args()
 
     if args.command == "train":
         train(args)
     elif args.command == "test":
         test(args)
+    elif args.command == "benchmark":
+        benchmark(args)
 
 
 if __name__ == "__main__":

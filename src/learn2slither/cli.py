@@ -133,26 +133,31 @@ def run_cli_game(width: int = 10, height: int = 10, speed: int = 6) -> None:
 def run_headless_autopilot(
     width: int = 10,
     height: int = 10,
+    model_path: str | None = None,
+    engine: str = "q",
+    runs: int | None = 1,
     qtable_path: str | None = None,
-    runs: int = 1,
 ) -> list[int]:
-    """Runs the snake game headlessly using the Q-table agent.
+    """Runs snake games headlessly using the selected trained agent."""
+    from learn2slither.agent import NeuralStateFeatures, StateFeatures, action_to_direction, create_agent
+    from learn2slither.models import create_initial_game
 
-    Plays the specified number of games and returns the list of scores.
-    """
-    from learn2slither.agent import QLearningAgent, StateFeatures
-    from learn2slither.models import create_initial_game, Direction
+    if model_path is None:
+        model_path = qtable_path
+    if runs is None:
+        runs = 1
 
-    agent = QLearningAgent()
-    if qtable_path:
-        if agent.q_table.load_from_file(qtable_path):
-            print(f"Loaded Q-table from '{qtable_path}'")
+    agent = create_agent(engine, training=False)
+    model_label = "Q-table" if engine == "q" else "DQN model"
+    if model_path:
+        if agent.load_from_file(model_path):
+            print(f"Loaded {model_label} from '{model_path}'")
         else:
             print(
-                f"⚠️ Warning: Could not load Q-table from '{qtable_path}'. Using untrained agent."
+                f"⚠️ Warning: Could not load {model_label} from '{model_path}'. Using untrained agent."
             )
     else:
-        print("⚠️ Warning: No Q-table path provided. Using untrained agent.")
+        print(f"⚠️ Warning: No {model_label} path provided. Using untrained agent.")
 
     scores = []
     max_steps = width * height * 10
@@ -161,19 +166,9 @@ def run_headless_autopilot(
         done = False
         steps = 0
         while not done and steps < max_steps:
-            curr_features = StateFeatures.from_game_state(state)
-            action = agent.get_action(curr_features, training=False)
-
-            # Map absolute action to direction
-            action_to_dir = {
-                0: Direction.UP,
-                1: Direction.LEFT,
-                2: Direction.DOWN,
-                3: Direction.RIGHT,
-            }
-            new_dir = action_to_dir[action]
-
-            state.change_direction(new_dir)
+            curr_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
+            action = agent.get_action(curr_features, training=False, verbose=False)
+            state.change_direction(action_to_direction(action))
             state.step()
             done = state.is_game_over
             steps += 1
