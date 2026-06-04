@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<rect width="100%" height="100%" fill="white"/>
+<text x="450" y="20" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#111827">Validation mean score and training time</text>
+<line x1="70" y1="440" x2="830" y2="440" stroke="#374151"/>
+<line x1="70" y1="30" x2="70" y2="440" stroke="#374151"/>
+<line x1="830" y1="30" x2="830" y2="440" stroke="#374151"/>
+<text x="450" y="482" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#374151">Training iterations</text>
+<text x="18" y="235" transform="rotate(-90 18 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#2563eb">Mean score over 100 validation runs</text>
+<text x="882" y="235" transform="rotate(90 882 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#f97316">Training time (seconds)</text>
+<text x="62" y="444" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="62" y="239.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">12.1</text>
+<text x="62" y="34" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">24.2</text>
+<text x="838" y="444" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="838" y="239.00" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">27.9</text>
+<text x="838" y="34" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">55.8</text>
+<text x="70" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="830" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">10000</text>
+<polyline points="146.00,319.35 222.00,283.65 298.00,279.25 374.00,232.21 450.00,135.76 526.00,223.41 602.00,42.86 678.00,37.45 754.00,127.97 830.00,30.00" fill="none" stroke="#2563eb" stroke-width="3"/>
+<polyline points="146.00,397.62 222.00,346.64 298.00,297.98 374.00,249.48 450.00,218.52 526.00,162.53 602.00,130.48 678.00,96.96 754.00,68.73 830.00,30.00" fill="none" stroke="#f97316" stroke-width="3"/>
+<circle cx="146.00" cy="319.35" r="4" fill="#2563eb"><title>Iteration 1000: mean score 7.13, training time 5.77s</title></circle><circle cx="146.00" cy="397.62" r="4" fill="#f97316"><title>Iteration 1000: training time 5.77s, mean score 7.13</title></circle>
+<circle cx="222.00" cy="283.65" r="4" fill="#2563eb"><title>Iteration 2000: mean score 9.24, training time 12.71s</title></circle><circle cx="222.00" cy="346.64" r="4" fill="#f97316"><title>Iteration 2000: training time 12.71s, mean score 9.24</title></circle>
+<circle cx="298.00" cy="279.25" r="4" fill="#2563eb"><title>Iteration 3000: mean score 9.50, training time 19.33s</title></circle><circle cx="298.00" cy="297.98" r="4" fill="#f97316"><title>Iteration 3000: training time 19.33s, mean score 9.50</title></circle>
+<circle cx="374.00" cy="232.21" r="4" fill="#2563eb"><title>Iteration 4000: mean score 12.28, training time 25.93s</title></circle><circle cx="374.00" cy="249.48" r="4" fill="#f97316"><title>Iteration 4000: training time 25.93s, mean score 12.28</title></circle>
+<circle cx="450.00" cy="135.76" r="4" fill="#2563eb"><title>Iteration 5000: mean score 17.98, training time 30.15s</title></circle><circle cx="450.00" cy="218.52" r="4" fill="#f97316"><title>Iteration 5000: training time 30.15s, mean score 17.98</title></circle>
+<circle cx="526.00" cy="223.41" r="4" fill="#2563eb"><title>Iteration 6000: mean score 12.80, training time 37.77s</title></circle><circle cx="526.00" cy="162.53" r="4" fill="#f97316"><title>Iteration 6000: training time 37.77s, mean score 12.80</title></circle>
+<circle cx="602.00" cy="42.86" r="4" fill="#2563eb"><title>Iteration 7000: mean score 23.47, training time 42.13s</title></circle><circle cx="602.00" cy="130.48" r="4" fill="#f97316"><title>Iteration 7000: training time 42.13s, mean score 23.47</title></circle>
+<circle cx="678.00" cy="37.45" r="4" fill="#2563eb"><title>Iteration 8000: mean score 23.79, training time 46.70s</title></circle><circle cx="678.00" cy="96.96" r="4" fill="#f97316"><title>Iteration 8000: training time 46.70s, mean score 23.79</title></circle>
+<circle cx="754.00" cy="127.97" r="4" fill="#2563eb"><title>Iteration 9000: mean score 18.44, training time 50.54s</title></circle><circle cx="754.00" cy="68.73" r="4" fill="#f97316"><title>Iteration 9000: training time 50.54s, mean score 18.44</title></circle>
+<circle cx="830.00" cy="30.00" r="4" fill="#2563eb"><title>Iteration 10000: mean score 24.23, training time 55.81s</title></circle><circle cx="830.00" cy="30.00" r="4" fill="#f97316"><title>Iteration 10000: training time 55.81s, mean score 24.23</title></circle>
+<text x="146.00" y="309.35" text-anchor="middle" font-size="12" fill="#111827">7.13</text>
+<text x="222.00" y="273.65" text-anchor="middle" font-size="12" fill="#111827">9.24</text>
+<text x="298.00" y="269.25" text-anchor="middle" font-size="12" fill="#111827">9.50</text>
+<text x="374.00" y="222.21" text-anchor="middle" font-size="12" fill="#111827">12.28</text>
+<text x="450.00" y="125.76" text-anchor="middle" font-size="12" fill="#111827">17.98</text>
+<text x="526.00" y="213.41" text-anchor="middle" font-size="12" fill="#111827">12.80</text>
+<text x="602.00" y="32.86" text-anchor="middle" font-size="12" fill="#111827">23.47</text>
+<text x="678.00" y="27.45" text-anchor="middle" font-size="12" fill="#111827">23.79</text>
+<text x="754.00" y="117.97" text-anchor="middle" font-size="12" fill="#111827">18.44</text>
+<text x="830.00" y="20.00" text-anchor="middle" font-size="12" fill="#111827">24.23</text>
+</svg>

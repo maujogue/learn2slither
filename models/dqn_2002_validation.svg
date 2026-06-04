@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<rect width="100%" height="100%" fill="white"/>
+<text x="450" y="20" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#111827">Validation mean score and training time</text>
+<line x1="70" y1="440" x2="830" y2="440" stroke="#374151"/>
+<line x1="70" y1="30" x2="70" y2="440" stroke="#374151"/>
+<line x1="830" y1="30" x2="830" y2="440" stroke="#374151"/>
+<text x="450" y="482" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#374151">Training iterations</text>
+<text x="18" y="235" transform="rotate(-90 18 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#2563eb">Mean score over 100 validation runs</text>
+<text x="882" y="235" transform="rotate(90 882 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#f97316">Training time (seconds)</text>
+<text x="62" y="444" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="62" y="239.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">14.5</text>
+<text x="62" y="34" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">29.1</text>
+<text x="838" y="444" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="838" y="239.00" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">55.1</text>
+<text x="838" y="34" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">110.2</text>
+<text x="70" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="830" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">2002</text>
+<polyline points="449.62,39.87 829.24,35.50 830.00,30.00" fill="none" stroke="#2563eb" stroke-width="3"/>
+<polyline points="449.62,329.04 829.24,55.84 830.00,30.00" fill="none" stroke="#f97316" stroke-width="3"/>
+<circle cx="449.62" cy="39.87" r="4" fill="#2563eb"><title>Iteration 1000: mean score 28.38, training time 29.82s</title></circle><circle cx="449.62" cy="329.04" r="4" fill="#f97316"><title>Iteration 1000: training time 29.82s, mean score 28.38</title></circle>
+<circle cx="829.24" cy="35.50" r="4" fill="#2563eb"><title>Iteration 2000: mean score 28.69, training time 103.23s</title></circle><circle cx="829.24" cy="55.84" r="4" fill="#f97316"><title>Iteration 2000: training time 103.23s, mean score 28.69</title></circle>
+<circle cx="830.00" cy="30.00" r="4" fill="#2563eb"><title>Iteration 2002: mean score 29.08, training time 110.17s</title></circle><circle cx="830.00" cy="30.00" r="4" fill="#f97316"><title>Iteration 2002: training time 110.17s, mean score 29.08</title></circle>
+<text x="449.62" y="29.87" text-anchor="middle" font-size="12" fill="#111827">28.38</text>
+<text x="829.24" y="25.50" text-anchor="middle" font-size="12" fill="#111827">28.69</text>
+<text x="830.00" y="20.00" text-anchor="middle" font-size="12" fill="#111827">29.08</text>
+</svg>

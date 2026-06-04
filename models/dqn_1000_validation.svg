@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500">
+<rect width="100%" height="100%" fill="white"/>
+<text x="450" y="20" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#111827">Validation mean score and training time</text>
+<line x1="70" y1="440" x2="830" y2="440" stroke="#374151"/>
+<line x1="70" y1="30" x2="70" y2="440" stroke="#374151"/>
+<line x1="830" y1="30" x2="830" y2="440" stroke="#374151"/>
+<text x="450" y="482" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#374151">Training iterations</text>
+<text x="18" y="235" transform="rotate(-90 18 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#2563eb">Mean score over 100 validation runs</text>
+<text x="882" y="235" transform="rotate(90 882 235)" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#f97316">Training time (seconds)</text>
+<text x="62" y="444" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="62" y="239.00" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">11.0</text>
+<text x="62" y="34" text-anchor="end" font-size="12" font-family="sans-serif" fill="#6b7280">22.0</text>
+<text x="838" y="444" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="838" y="239.00" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">24.4</text>
+<text x="838" y="34" text-anchor="start" font-size="12" font-family="sans-serif" fill="#6b7280">48.8</text>
+<text x="70" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">0</text>
+<text x="830" y="460" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#6b7280">1000</text>
+<polyline points="830.00,30.00" fill="none" stroke="#2563eb" stroke-width="3"/>
+<polyline points="830.00,30.00" fill="none" stroke="#f97316" stroke-width="3"/>
+<circle cx="830.00" cy="30.00" r="4" fill="#2563eb"><title>Iteration 1000: mean score 22.04, training time 48.84s</title></circle><circle cx="830.00" cy="30.00" r="4" fill="#f97316"><title>Iteration 1000: training time 48.84s, mean score 22.04</title></circle>
+<text x="830.00" y="20.00" text-anchor="middle" font-size="12" fill="#111827">22.04</text>
+</svg>
