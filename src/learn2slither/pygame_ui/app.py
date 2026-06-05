@@ -846,7 +846,7 @@ def run_game(
                 screen.blit(lbl_eps, (tel_x, tel_y + 55))
 
                 lbl_states = font_subtitle.render(
-                    f"Unique States: {len(agent.model.table)}",
+                    agent.telemetry_summary(),
                     True,
                     COLOR_GREEN_APPLE,
                 )
