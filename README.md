@@ -46,6 +46,8 @@ uv run l2s test --manual
 uv run l2s test --engine nn src/models/dqn_7000.json
 ```
 
+In the GUI, a step-by-step toggle lets you pause between moves and advance with `SPACE`. This allows careful session inspection at human speed.
+
 Print each headless autopilot decision with `--verbose`:
 
 ```bash
@@ -57,3 +59,33 @@ The quiet default is preserved for benchmarks and batch evaluation.
 ## Evaluation notes
 
 Headless tests print per-run scores and summary metrics. The included trained DQN models are intended for non-training evaluation, while benchmark mode compares saved Q-table and DQN JSON files under the same board settings.
+
+## Feature set benchmark
+
+Results below were measured on a 10×10 board after 2100 training episodes and 1000 headless evaluation runs per configuration (sorted by `eval_mean`).
+
+| Rank | Engine | Profile <br/> <sub>(see labels below)</sub> | Dim | Eval mean | Eval median | Eval max | Eval min | Train (s) | Q states | ε | DQN loss |
+| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | nn | full | 16 | 26.58 | 26.00 | 50 | 3 | 96.1 | — | 0.005 | 0.0557 |
+| 2 | nn | full_wall_body | 16 | 26.21 | 27.00 | 51 | 3 | 91.7 | — | 0.005 | 0.0422 |
+| 3 | nn | green_wall_body | 12 | 25.31 | 25.00 | 48 | 7 | 90.5 | — | 0.005 | 0.0495 |
+| 4 | nn | green_danger | 8 | 24.89 | 25.00 | 48 | 0 | 81.9 | — | 0.005 | 0.0568 |
+| 5 | q | green_danger | 8 | 23.50 | 23.00 | 48 | 6 | 13.8 | 66 | 0.900 | — |
+| 6 | q | green_wall_body | 12 | 21.05 | 20.00 | 52 | 1 | 14.0 | 158 | 0.900 | — |
+| 7 | q | full | 12 | 20.72 | 21.00 | 50 | 1 | 14.1 | 146 | 0.900 | — |
+| 8 | q | full_wall_body | 16 | 15.30 | 15.00 | 41 | 2 | 10.8 | 287 | 0.900 | — |
+
+<details>
+<summary><strong>Profile descriptions</strong></summary>
+
+DQN features are distances from the head to the object, normalized to the board size.
+Q-table features are immediate contact with danger, or sight of an apple.
+
+- <strong>full</strong>: Danger (wall or self), green apple, red apple &mdash; single boolean for each, in all 4 directions.
+- <strong>full_wall_body</strong>: Separate booleans for wall, body, green, red in all 4 directions.
+- <strong>green_wall_body</strong>: Separate booleans for wall, body, and green apple in all 4 directions.
+- <strong>green_danger</strong>: Combined danger (max of wall/body), plus green apple in all 4 directions.
+
+</details>
+
+DQN variants rank highest overall; for Q-tables, the smaller `green_danger` profile beats the richer `full` and `full_wall_body` encodings on mean score.
