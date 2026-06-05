@@ -65,7 +65,8 @@ def _run_validation_command(
     match = re.search(r"Mean Score:\s*([0-9]+(?:\.[0-9]+)?)", output)
     if match is None:
         raise RuntimeError(
-            f"Could not parse validation mean score from command output:\n{output}"
+            "Could not parse validation mean score from command"
+            f" output:\n{output}"
         )
     return float(match.group(1))
 
@@ -81,13 +82,15 @@ def train_agent(
     engine_label = "Q-Learning" if engine == "q" else "DQN"
     model_label = "Q-table" if engine == "q" else "DQN model"
     print(
-        f"\n🚀 Starting Headless {engine_label} Training ({episodes} episodes) on {width}x{height} Grid..."
+        f"\n🚀 Starting Headless {engine_label} Training"
+        f" ({episodes} episodes) on {width}x{height} Grid..."
     )
     agent = create_agent(engine, training=True)
 
     if save_path and agent.load_from_file(save_path):
         print(
-            f"Loaded existing {model_label} from '{save_path}' to continue training."
+            f"Loaded existing {model_label} from '{save_path}'"
+            " to continue training."
         )
 
     scores: list[int] = []
@@ -168,8 +171,11 @@ def train_agent(
             mean_score = sum(scores[-100:]) / len(scores[-100:])
             mean_steps = sum(steps_list[-100:]) / len(steps_list[-100:])
             print(
-                f"Episode {ep:5d}/{episodes} | Avg Score (last 100): {mean_score:4.1f} | "
-                f"Avg Steps: {mean_steps:5.1f} | Epsilon: {agent.epsilon:5.3f} | {agent.training_status()}"
+                f"Episode {ep:5d}/{episodes} |"
+                f" Avg Score (last 100): {mean_score:4.1f} |"
+                f" Avg Steps: {mean_steps:5.1f}"
+                f" | Epsilon: {agent.epsilon:5.3f}"
+                f" | {agent.training_status()}"
             )
 
         validation_interval = max(1, episodes // 5)
@@ -187,7 +193,8 @@ def train_agent(
             validation_points.append((ep, validation_mean, elapsed))
             print(
                 f"Validation after {ep:5d}/{episodes} episodes | "
-                f"Mean Score (100 runs): {validation_mean:.2f} | Training Time: {elapsed:.2f}s"
+                f"Mean Score (100 runs): {validation_mean:.2f}"
+                f" | Training Time: {elapsed:.2f}s"
             )
 
     if episodes > 0 and (
@@ -203,7 +210,8 @@ def train_agent(
         validation_points.append((episodes, validation_mean, elapsed))
         print(
             f"Final validation after {episodes:5d}/{episodes} episodes | "
-            f"Mean Score (100 runs): {validation_mean:.2f} | Training Time: {elapsed:.2f}s"
+            f"Mean Score (100 runs): {validation_mean:.2f}"
+            f" | Training Time: {elapsed:.2f}s"
         )
 
     if validation_points:
@@ -216,11 +224,13 @@ def train_agent(
     if save_path:
         agent.save_to_file(save_path)
         print(
-            f"🎉 Training completed successfully! Trained {model_label} saved to '{save_path}'."
+            f"🎉 Training completed successfully!"
+            f" Trained {model_label} saved to '{save_path}'."
         )
     else:
         print(
-            f"🎉 Training completed successfully! ({model_label} was not saved since save_path is None)"
+            f"🎉 Training completed successfully!"
+            f" ({model_label} was not saved since save_path is None)"
         )
     if temp_validation_dir is not None:
         temp_validation_dir.cleanup()

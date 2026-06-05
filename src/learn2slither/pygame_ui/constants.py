@@ -9,7 +9,7 @@ HEADER_HEIGHT = 80
 WINDOW_WIDTH = BOARD_WIDTH
 WINDOW_HEIGHT = BOARD_HEIGHT + HEADER_HEIGHT
 
-# Palette (Rustic Retro Monochrome/Green theme - no fancy gradients or slate-indigo)
+# Rustic retro monochrome/green palette (no gradients or slate-indigo)
 COLOR_BG_DARK = (20, 20, 20)  # Near black
 COLOR_HEADER_BG = (35, 35, 35)  # Dark gray
 COLOR_GRID_LINE = (45, 45, 45)  # Muted grid line
@@ -17,7 +17,7 @@ COLOR_DIVIDER = (70, 70, 70)  # Gray divider line
 COLOR_TEXT_PRIMARY = (230, 230, 230)  # Off-white / light gray
 COLOR_TEXT_MUTED = (160, 160, 160)  # Muted gray
 
-# Snake & Apple (Solid, simple colors - no gloss, reflections or fancy gradients)
+# Snake and apple colors (solid, no gloss or fancy gradients)
 COLOR_SNAKE_HEAD = (30, 100, 200)  # Darker rustic blue for head
 COLOR_SNAKE_BODY = (70, 150, 220)  # Lighter rustic blue for body
 COLOR_SNAKE_TAIL = COLOR_SNAKE_BODY  # Keep reference for compatibility

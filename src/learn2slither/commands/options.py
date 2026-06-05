@@ -41,7 +41,10 @@ def setup_test_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--runs",
         type=int,
-        help="Number of experiments (runs) to do, returning the results and summary metrics",
+        help=(
+            "Number of experiments (runs) to do,"
+            " returning the results and summary metrics"
+        ),
     )
     parser.add_argument(
         "--manual",

@@ -2,7 +2,7 @@ from learn2slither.core import GameState
 
 
 def get_min_green_dist(state: GameState) -> float:
-    """Returns Manhattan distance from snake head to the closest green apple."""
+    """Return Manhattan distance from snake head to nearest green apple."""
     if not state.green_apples:
         return 0.0
     head = state.snake.head

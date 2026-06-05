@@ -2,7 +2,7 @@ from learn2slither.core import BoardConfig, Direction, Point, Snake, GameState
 
 
 def create_initial_game(width: int = 10, height: int = 10) -> GameState:
-    """Creates a new game state with a contiguous snake of length 3 and spawned apples."""
+    """Create a game state with a length-3 contiguous snake and apples."""
     import random
 
     config = BoardConfig(width, height)
@@ -41,7 +41,7 @@ def create_initial_game(width: int = 10, height: int = 10) -> GameState:
         path = find_body_path(body)
         if path is not None:
             # Snake body created contiguously!
-            # Align head direction: pointing from neck (path[1]) to head (path[0])
+            # Align head direction: neck (path[1]) toward head (path[0])
             dx = path[0].x - path[1].x
             dy = path[0].y - path[1].y
 

@@ -29,7 +29,7 @@ class GameState:
         )
 
     def get_empty_cells(self) -> list[Point]:
-        """Returns a list of all cells that are not occupied by the snake or any apples."""
+        """Return cells not occupied by the snake or any apples."""
         occupied = set(self.snake.body) | self.green_apples | self.red_apples
         empty = []
         for x in range(self.config.width):
@@ -60,7 +60,7 @@ class GameState:
         self.snake.direction = new_direction
 
     def step(self) -> None:
-        """Moves the snake forward one step and processes collisions and apples."""
+        """Move the snake one step; handle collisions and apples."""
         if self.is_game_over:
             return
 
@@ -81,7 +81,7 @@ class GameState:
             self.green_apples.remove(new_head)
             self.snake.body.insert(0, new_head)
 
-            # Check collision with own body (excluding the new head we just added)
+            # Body collision check (excluding the head we just added)
             if new_head in self.snake.body[1:]:
                 self.is_game_over = True
                 self.game_over_reason = GameOverReason.TAIL_COLLISION
@@ -100,7 +100,7 @@ class GameState:
                 self.game_over_reason = GameOverReason.STARVATION
                 return
 
-            # Compute new body: prepend new head, remove last two elements (net length -1)
+            # Prepend new head, drop last two segments (net length -1)
             new_body = [new_head] + self.snake.body[:-2]
 
             if len(new_body) == 0:

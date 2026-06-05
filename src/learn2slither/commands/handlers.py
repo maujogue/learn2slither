@@ -38,7 +38,7 @@ def model_engine_for_path(path: str) -> str | None:
 def find_model_files(
     models_dir: str, engine: str = "all"
 ) -> list[tuple[str, str]]:
-    """Return discovered model files as (engine, path), sorted for stable output."""
+    """Return model files as (engine, path), sorted for stable output."""
     try:
         names = sorted(os.listdir(models_dir))
     except OSError:
@@ -83,14 +83,15 @@ def train(args: argparse.Namespace) -> None:
             models_dir, f"{prefix}_{args.sessions}.{ext}"
         )
 
-    # If path already exists, prompt the user if they want to continue training or reset the file.
+    # Prompt to continue training or reset when the path already exists.
     if os.path.exists(model_path):
         while True:
             try:
                 response = (
                     input(
                         f"⚠️ model file '{model_path}' already exists.\n"
-                        "Do you want to [C]ontinue training or [R]eset/overwrite the file? (c/r): "
+                        "Do you want to [C]ontinue training"
+                        " or [R]eset/overwrite the file? (c/r): "
                     )
                     .strip()
                     .lower()
@@ -125,22 +126,28 @@ def train(args: argparse.Namespace) -> None:
                 if new_model_path != model_path:
                     if os.path.exists(new_model_path):
                         print(
-                            f"⚠️ Note: Destination file '{new_model_path}' already exists and will be overwritten."
+                            f"⚠️ Note: Destination file"
+                            f" '{new_model_path}' already exists"
+                            " and will be overwritten."
                         )
                     try:
                         os.rename(model_path, new_model_path)
                         print(
-                            f"Renamed model file to '{new_model_path}' to reflect final sessions ({new_sessions})."
+                            f"Renamed model file to '{new_model_path}'"
+                            f" to reflect final sessions"
+                            f" ({new_sessions})."
                         )
                         model_path = new_model_path
                     except OSError as e:
                         print(
-                            f"⚠️ Warning: Could not rename file to reflect new sessions: {e}"
+                            "⚠️ Warning: Could not rename file"
+                            f" to reflect new sessions: {e}"
                         )
                 break
             elif response in ("r", "reset"):
                 print(
-                    "Resetting model file. A new model will be trained from scratch."
+                    "Resetting model file."
+                    " A new model will be trained from scratch."
                 )
                 try:
                     os.remove(model_path)
@@ -194,7 +201,7 @@ def test(args: argparse.Namespace) -> None:
         if model_path is not None:
             print(f"Loaded first model from '{model_path}'")
 
-    # Warn if model does not exist when not manual testing and no GUI fallback is possible.
+    # Warn when model is missing in non-manual test without GUI fallback.
     if (
         not args.manual
         and model_path is not None
@@ -203,7 +210,7 @@ def test(args: argparse.Namespace) -> None:
         print(f"⚠️ Warning: model file '{model_path}' does not exist.")
         return
 
-    # Auto-detect engine from the model file so the user doesn't need to specify --engine.
+    # Auto-detect engine from the model file (no --engine flag needed).
     engine = args.engine
     if model_path is not None and os.path.exists(model_path):
         from learn2slither.agents.model_format import detect_model_engine
@@ -211,7 +218,8 @@ def test(args: argparse.Namespace) -> None:
         detected = detect_model_engine(model_path)
         if detected is not None and detected != engine:
             print(
-                f"ℹ️  Auto-detected engine '{detected}' from model file (was '{engine}')."
+                f"ℹ️  Auto-detected engine '{detected}'"
+                f" from model file (was '{engine}')."
             )
             engine = detected
 
@@ -248,7 +256,7 @@ def test(args: argparse.Namespace) -> None:
 
 
 def benchmark(args: argparse.Namespace) -> None:
-    """Run every matching saved model headlessly and print the best performers."""
+    """Run saved models headlessly and print the best performers."""
     width = max(5, min(25, args.width))
     height = max(5, min(25, args.height))
     runs = max(1, args.runs)
@@ -274,7 +282,8 @@ def benchmark(args: argparse.Namespace) -> None:
         max_score = max(scores)
         results.append((mean_score, max_score, engine, model_path, scores))
         print(
-            f"Mean Score: {mean_score:.2f} | Max Score: {max_score} | Scores: {scores}"
+            f"Mean Score: {mean_score:.2f} | Max Score: {max_score}"
+            f" | Scores: {scores}"
         )
 
     results.sort(key=lambda result: (-result[0], -result[1], result[3]))

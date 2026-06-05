@@ -2,7 +2,8 @@ def _mean_score(scores: list[int]) -> float:
     """Return the arithmetic mean for a non-empty score list."""
     if not scores:
         raise ValueError(
-            "At least one completed run is required to calculate score metrics."
+            "At least one completed run is required"
+            " to calculate score metrics."
         )
     return sum(scores) / len(scores)
 
@@ -30,7 +31,8 @@ def _score_summary_lines(scores: list[int]) -> list[str]:
     """Return human-readable summary statistics for completed test runs."""
     if not scores:
         raise ValueError(
-            "At least one completed run is required to calculate score metrics."
+            "At least one completed run is required"
+            " to calculate score metrics."
         )
     sorted_scores = sorted(scores)
     n_scores = len(sorted_scores)
@@ -58,7 +60,8 @@ def _score_summary_lines(scores: list[int]) -> list[str]:
         f"Q3 Score: {q3:.2f}",
         f"Max Score: {maximum_score}",
         f"IQR: {iqr:.2f}",
-        f"Outlier Bounds: < {low_outlier_limit:.2f} or > {high_outlier_limit:.2f}",
+        f"Outlier Bounds: < {low_outlier_limit:.2f}"
+        f" or > {high_outlier_limit:.2f}",
         f"Outliers ({len(outliers)}): {outliers}",
         f"Top 10% Count: {top_count}",
         f"Top 10% Scores: {top_scores}",

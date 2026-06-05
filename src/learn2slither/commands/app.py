@@ -59,7 +59,10 @@ def main() -> None:
     benchmark_parser = subparsers.add_parser(
         "benchmark",
         parents=[parent_parser],
-        help="Run every saved model of one type or all types and rank the best models",
+        help=(
+            "Run every saved model of one type or all types"
+            " and rank the best models"
+        ),
     )
     setup_benchmark_args(benchmark_parser)
 

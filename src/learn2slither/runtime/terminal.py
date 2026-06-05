@@ -8,16 +8,16 @@ from learn2slither.core import (
 
 
 def clear_terminal() -> None:
-    """Clears the terminal screen in-place using ANSI escape codes for a smooth TUI."""
+    """Clear the terminal in-place using ANSI escape codes for a smooth TUI."""
     sys.stdout.write("\033[H\033[2J")
     sys.stdout.flush()
 
 
 def print_vision_grid(state) -> None:
-    """Computes and prints the Snake's vision.
+    """Compute and print the snake's vision.
 
-    Only shows the vertical and horizontal lines of sight that cross at the snake's head.
-    Displays a beautiful visual ASCII cross representation and flat arrays for agent parsing.
+    Shows the vertical and horizontal sight lines that cross at the head.
+    Renders an ASCII cross and flat arrays for agent parsing.
     """
     clear_terminal()
     print("\n")
@@ -72,7 +72,8 @@ def print_vision_grid(state) -> None:
             # Print the entire horizontal row
             print(" ".join(horiz_chars))
         else:
-            # Print spaces leading up to the head column, then print the vertical character
+            # Print spaces leading up to the head column,
+            # then print the vertical character
             # Each character is separated by a space (2 chars per column width)
             spaces = " " * (2 * (head.x + 1))
             print(f"{spaces}{vert_chars[y + 1]}")
@@ -81,7 +82,8 @@ def print_vision_grid(state) -> None:
 def run_cli_game(width: int = 10, height: int = 10, speed: int = 6) -> None:
     """Runs the pure headless command-line loop of the snake game."""
     print(
-        f"\n🐍 Initializing CLI Snake Game: {width}x{height} Grid | Speed: {speed} steps/sec"
+        f"\n🐍 Initializing CLI Snake Game: {width}x{height} Grid "
+        f"| Speed: {speed} steps/sec"
     )
     state = create_initial_game(width=width, height=height)
 

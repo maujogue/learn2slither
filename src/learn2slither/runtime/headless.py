@@ -28,11 +28,13 @@ def run_headless_autopilot(
             print(f"Loaded {model_label} from '{model_path}'")
         else:
             print(
-                f"⚠️ Warning: Could not load {model_label} from '{model_path}'. Using untrained agent."
+                f"⚠️ Warning: Could not load {model_label}"
+                f" from '{model_path}'. Using untrained agent."
             )
     else:
         print(
-            f"⚠️ Warning: No {model_label} path provided. Using untrained agent."
+            f"⚠️ Warning: No {model_label} path provided."
+            " Using untrained agent."
         )
 
     scores = []

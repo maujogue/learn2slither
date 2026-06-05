@@ -187,7 +187,10 @@ def run_game(
 
     # Print initial state vision matrix
     print("\n" + "=" * 60)
-    print(f"🎮 GAME START - Initial Vision ({grid_width}x{grid_height}) 🎮")
+    print(
+        f"🎮 GAME START - Initial Vision"
+        f" ({grid_width}x{grid_height}) 🎮"
+    )
     print_vision_grid(state)
     print("=" * 60)
 
@@ -284,7 +287,11 @@ def run_game(
                             new_model_path = os.path.join(
                                 root_dir,
                                 "models",
-                                f"{'q_table' if engine == 'q' else 'dqn'}_{episodes}.json",
+                                (
+                                    "q_table"
+                                    if engine == "q"
+                                    else "dqn"
+                                ) + f"_{episodes}.json",
                             )
                         else:
                             new_model_path = model_path
@@ -298,16 +305,23 @@ def run_game(
                         try:
                             os.rename(model_path, new_model_path)
                             print(
-                                f"Renamed model file to '{new_model_path}' to reflect final sessions ({new_sessions})."
+                                f"Renamed model file to"
+                                f" '{new_model_path}' to reflect"
+                                f" final sessions ({new_sessions})."
                             )
                         except OSError as e:
-                            print(f"⚠️ Warning: Could not rename file: {e}")
+                            print(
+                                "⚠️ Warning: Could not rename"
+                                f" file: {e}"
+                            )
 
                     model_path = new_model_path
                     agent.save_to_file(model_path)
                     reload_model_options()
                     print(
-                        f"🎉 Training of {episodes} episodes completed! Trained model saved/renamed to '{model_path}'."
+                        f"🎉 Training of {episodes} episodes"
+                        f" completed! Trained model"
+                        f" saved/renamed to '{model_path}'."
                     )
 
                     if gui_initiated_training:
@@ -347,7 +361,7 @@ def run_game(
             prev_snake_len = len(state.snake.body)
             state.step()
 
-            # Stagnation detection in AI mode: game over if no apple eaten for too long
+            # AI mode: game over when no apple is eaten for too long
             if ai_mode and not state.is_game_over:
                 if len(state.snake.body) > prev_snake_len:
                     steps_without_apple = 0
@@ -359,7 +373,8 @@ def run_game(
                         state.game_over_reason = None
                         steps_without_apple = 0
                         print(
-                            f"\nSTAGNATION: No apple eaten in {no_apple_limit} steps. Game over."
+                            f"\nSTAGNATION: No apple eaten in"
+                            f" {no_apple_limit} steps. Game over."
                         )
 
         # Output State Vision to terminal on every tick
@@ -412,7 +427,9 @@ def run_game(
 
                         print("\n" + "=" * 60)
                         print(
-                            f"🎮 GAME RESTARTED - {grid_width}x{grid_height} at speed {speed} moves/sec 🎮"
+                            f"🎮 GAME RESTARTED -"
+                            f" {grid_width}x{grid_height}"
+                            f" at speed {speed} moves/sec 🎮"
                         )
                         print_vision_grid(state)
                         print("=" * 60)
@@ -550,7 +567,8 @@ def run_game(
                         score = len(state.snake.body)
                         last_dist = get_min_green_dist(state)
                         print(
-                            f"🚀 Starting GUI-initiated training of {episodes} episodes..."
+                            f"🚀 Starting GUI-initiated training"
+                            f" of {episodes} episodes..."
                         )
 
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -597,7 +615,9 @@ def run_game(
 
                         print("\n" + "=" * 60)
                         print(
-                            f"🎮 SETTINGS APPLIED & RESTARTED - {grid_width}x{grid_height} at speed {speed} moves/sec 🎮"
+                            f"🎮 SETTINGS APPLIED & RESTARTED -"
+                            f" {grid_width}x{grid_height}"
+                            f" at speed {speed} moves/sec 🎮"
                         )
                         print_vision_grid(state)
                         print("=" * 60)

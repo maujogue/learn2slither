@@ -12,7 +12,7 @@ from learn2slither.agents.model_format import is_q_table_payload
 class QValue:
     """A Q-value entity representing the expected cumulative reward.
 
-    Tracks additional metadata such as the number of updates to monitor training density.
+    Tracks update count metadata to monitor training density.
     """
 
     value: float = 0.0
@@ -32,11 +32,11 @@ class QTable:
     """
 
     def __init__(self) -> None:
-        # Dictionary mapping: state_tuple (tuple of 12 booleans) -> {action_id (0..3) -> QValue}
+        # state_tuple (12 bools) -> {action_id (0..3) -> QValue}
         self.table: dict[tuple[bool, ...], dict[int, QValue]] = {}
 
     def get_q_value(self, state: StateFeatures, action: int) -> QValue:
-        """Retrieves a QValue entity for a given state and action, initializing it if absent."""
+        """Return QValue for a state and action, initializing if absent."""
         state_tuple = state.to_tuple()
         if state_tuple not in self.table:
             self.table[state_tuple] = {
@@ -57,7 +57,7 @@ class QTable:
         best_action = 0
         best_val = -float("inf")
         actions = list(self.table[state_tuple].items())
-        # Shuffle actions to break ties randomly (if multiple values are equal) and prevent bias
+        # Shuffle actions to break ties randomly and prevent bias
         random.shuffle(actions)
         for act, q_val in actions:
             if q_val.value > best_val:
@@ -79,7 +79,7 @@ class QTable:
             json.dump(serialized, f, indent=2)
 
     def load_from_file(self, filepath: str) -> bool:
-        """Deserializes the Q-table from a JSON file. Returns True if successful."""
+        """Load the Q-table from JSON. Return True if successful."""
         if not os.path.exists(filepath):
             return False
         try:
@@ -112,7 +112,7 @@ class QTable:
 
 
 class QLearningAgent:
-    """Orchestrates Q-learning training and action selection for the Snake game."""
+    """Orchestrate Q-learning training and action selection."""
 
     engine_name: EngineName = "q"
 
