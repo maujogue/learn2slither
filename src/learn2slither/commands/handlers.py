@@ -57,6 +57,8 @@ def find_model_files(models_dir: str, engine: str = "all") -> list[tuple[str, st
 
 def train(args: argparse.Namespace) -> None:
     """Sub-function to handle the training flow."""
+    if args.sessions < 1:
+        raise SystemExit("--sessions must be at least 1")
     width = max(5, min(25, args.width))
     height = max(5, min(25, args.height))
     speed = max(1, min(1000, args.speed))
@@ -170,6 +172,8 @@ def train(args: argparse.Namespace) -> None:
 
 def test(args: argparse.Namespace) -> None:
     """Sub-function to handle the testing flow."""
+    if args.runs is not None and args.runs < 1:
+        raise SystemExit("--runs must be at least 1")
     width = max(5, min(25, args.width))
     height = max(5, min(25, args.height))
     speed = max(1, min(1000, args.speed))
