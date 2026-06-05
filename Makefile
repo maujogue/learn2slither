@@ -9,3 +9,6 @@ type:
 
 run:
 	uv run learn2slither 
+
+flake:
+	uv run flake8 src

@@ -21,7 +21,7 @@ def _quartiles_sorted(values: list[int]) -> tuple[float, float, float]:
     median = _median_sorted(values)
     midpoint = len(values) // 2
     lower_half = values[:midpoint]
-    upper_half = values[midpoint + (len(values) % 2) :]
+    upper_half = values[midpoint + (len(values) % 2):]
     q1 = _median_sorted(lower_half) if lower_half else median
     q3 = _median_sorted(upper_half) if upper_half else median
     return q1, median, q3
