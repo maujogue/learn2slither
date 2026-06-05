@@ -194,6 +194,15 @@ def test(args: argparse.Namespace) -> None:
         print(f"⚠️ Warning: model file '{model_path}' does not exist.")
         return
 
+    # Auto-detect engine from the model file so the user doesn't need to specify --engine.
+    engine = args.engine
+    if model_path is not None and os.path.exists(model_path):
+        from learn2slither.agents.model_format import detect_model_engine
+        detected = detect_model_engine(model_path)
+        if detected is not None and detected != engine:
+            print(f"ℹ️  Auto-detected engine '{detected}' from model file (was '{engine}').")
+            engine = detected
+
     if args.headless:
         if args.manual:
             from learn2slither.runtime.terminal import run_cli_game
@@ -206,7 +215,7 @@ def test(args: argparse.Namespace) -> None:
                 width=width,
                 height=height,
                 model_path=model_path,
-                engine=args.engine,
+                engine=engine,
                 runs=args.runs,
                 verbose=args.verbose,
             )
@@ -221,7 +230,7 @@ def test(args: argparse.Namespace) -> None:
             initial_height=height,
             initial_speed=speed,
             model_path=model_path,
-            engine=args.engine,
+            engine=engine,
             autopilot=autopilot,
         )
 
