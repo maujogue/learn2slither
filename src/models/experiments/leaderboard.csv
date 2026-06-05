@@ -1,0 +1,9 @@
+rank,engine,profile,state_dim,eval_mean,eval_median,eval_max,eval_min,train_time_s,unique_q_states,final_epsilon,final_dqn_loss,model_path
+1,nn,full,16,26.5780,26.0000,50,3,96.14,,0.005000,0.055680,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/nn_full_2100.json
+2,nn,full_wall_body,16,26.2060,27.0000,51,3,91.71,,0.005000,0.042249,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/nn_full_wall_body_2100.json
+3,nn,green_wall_body,12,25.3120,25.0000,48,7,90.52,,0.005000,0.049515,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/nn_green_wall_body_2100.json
+4,nn,green_danger,8,24.8850,25.0000,48,0,81.89,,0.005000,0.056752,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/nn_green_danger_2100.json
+5,q,green_danger,8,23.4990,23.0000,48,6,13.84,66,0.900000,,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/q_green_danger_2100.json
+6,q,green_wall_body,12,21.0470,20.0000,52,1,14.02,158,0.900000,,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/q_green_wall_body_2100.json
+7,q,full,12,20.7190,21.0000,50,1,14.07,146,0.900000,,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/q_full_2100.json
+8,q,full_wall_body,16,15.2970,15.0000,41,2,10.84,287,0.900000,,/Users/mathisaujogue/code/42/learn2slither/experiments/feature_ablation/q_full_wall_body_2100.json
