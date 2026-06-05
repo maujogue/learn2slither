@@ -1,6 +1,7 @@
 import argparse
 import os
 
+from learn2slither.agents.model_format import detect_model_engine
 from learn2slither.commands.stats import _mean_score, _score_summary_lines
 
 
@@ -12,7 +13,7 @@ def get_models_dir() -> str:
     return os.path.join(root_dir, "models")
 
 
-def first_model_file(models_dir: str) -> str | None:
+def first_model_file(models_dir: str, engine: str | None = None) -> str | None:
     """Return the first JSON model file in models_dir, sorted by name."""
     try:
         names = sorted(os.listdir(models_dir))
@@ -21,24 +22,17 @@ def first_model_file(models_dir: str) -> str | None:
 
     for name in names:
         path = os.path.join(models_dir, name)
-        if name.endswith(".json") and os.path.isfile(path):
-            return path
+        if not name.endswith(".json") or not os.path.isfile(path):
+            continue
+        if engine is not None and model_engine_for_path(path) != engine:
+            continue
+        return path
     return None
-
-
-MODEL_ENGINE_SPECS = {
-    "q": (".json", ("q_table", "q-")),
-    "nn": (".json", ("dqn", "nn-")),
-}
 
 
 def model_engine_for_path(path: str) -> str | None:
-    """Return the engine implied by a model file name, if it is known."""
-    name = os.path.basename(path).lower()
-    for engine, (extension, prefixes) in MODEL_ENGINE_SPECS.items():
-        if name.endswith(extension) and name.startswith(prefixes):
-            return engine
-    return None
+    """Return the engine implied by a model file's JSON payload, if known."""
+    return detect_model_engine(path)
 
 
 def find_model_files(models_dir: str, engine: str = "all") -> list[tuple[str, str]]:
@@ -187,7 +181,7 @@ def test(args: argparse.Namespace) -> None:
     if args.headless and not args.manual and model_path is None:
         raise SystemExit("test --headless requires a model path")
     if not args.headless and not args.manual and model_path is None:
-        model_path = first_model_file(models_dir)
+        model_path = first_model_file(models_dir, engine=args.engine)
         if model_path is not None:
             print(f"Loaded first model from '{model_path}'")
 

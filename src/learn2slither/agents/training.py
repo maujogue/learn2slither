@@ -149,7 +149,8 @@ def train_agent(
                 f"Avg Steps: {mean_steps:5.1f} | Epsilon: {agent.epsilon:5.3f} | {agent.training_status()}"
             )
 
-        if ep % (episodes // 5) == 0:
+        validation_interval = max(1, episodes // 5)
+        if ep % validation_interval == 0:
             if validation_model_path is None:
                 raise RuntimeError("validation_model_path was not initialized")
             agent.save_to_file(validation_model_path)

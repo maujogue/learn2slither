@@ -1,5 +1,7 @@
 import os
 
+from learn2slither.agents.model_format import detect_model_engine
+
 
 def _get_default_model_paths(model_path: str | None, engine: str) -> list[str]:
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +23,10 @@ def _get_default_model_paths(model_path: str | None, engine: str) -> list[str]:
     return paths
 
 
+def _matches_engine(path: str, engine: str) -> bool:
+    return detect_model_engine(path) == engine
+
+
 def _discover_model_files(model_path: str | None, engine: str) -> list[str]:
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     dirs = [os.path.join(root_dir, "models"), os.path.dirname(__file__)]
@@ -36,7 +42,7 @@ def _discover_model_files(model_path: str | None, engine: str) -> list[str]:
             if not name.endswith(".json"):
                 continue
             path = os.path.abspath(os.path.join(directory, name))
-            if path in seen:
+            if path in seen or not _matches_engine(path, engine):
                 continue
             seen.add(path)
             paths.append(path)

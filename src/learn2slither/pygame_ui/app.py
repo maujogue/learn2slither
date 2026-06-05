@@ -64,11 +64,15 @@ def run_game(
     # Initialize agent and load pretrained model
     agent = create_agent(engine, training=training)
     model_files = _discover_model_files(model_path, engine)
-    if model_path is None and model_files:
+    if model_path is None and model_files and (autopilot or training):
         model_path = model_files[0]
     model_existed_before_training = bool(model_path and os.path.exists(model_path))
-    if model_path:
-        agent.load_from_file(model_path)
+    if model_path and (autopilot or training):
+        if not agent.load_from_file(model_path):
+            print(
+                f"⚠️ Warning: Could not load model from '{model_path}'. "
+                "Using untrained agent."
+            )
     ai_mode = autopilot and model_path is not None
 
     # Load rustic monospace fonts with system fallbacks
@@ -162,8 +166,13 @@ def run_game(
         nonlocal model_path, model_existed_before_training
         model_path = path
         model_existed_before_training = os.path.exists(path)
-        agent.load_from_file(path)
-        print(f"Loaded model from '{path}' for autopilot.")
+        if agent.load_from_file(path):
+            print(f"Loaded model from '{path}' for autopilot.")
+        else:
+            print(
+                f"⚠️ Warning: Could not load model from '{path}'. "
+                "Using untrained agent."
+            )
 
     # Print initial state vision matrix
     print("\n" + "=" * 60)

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from learn2slither.agents.actions import EngineName
 from learn2slither.agents.features import StateFeatures
+from learn2slither.agents.model_format import is_q_table_payload
 
 
 @dataclass
@@ -90,16 +91,23 @@ class QTable:
         except Exception:
             return False
 
+        if not is_q_table_payload(serialized):
+            return False
+
         self.table.clear()
-        for key_str, action_dict in serialized.items():
-            state_tuple = tuple(bool(int(x)) for x in key_str.split(","))
-            self.table[state_tuple] = {}
-            for act_str, val_dict in action_dict.items():
-                act = int(act_str)
-                self.table[state_tuple][act] = QValue(
-                    value=float(val_dict["value"]),
-                    n_updates=int(val_dict.get("n_updates", 0)),
-                )
+        try:
+            for key_str, action_dict in serialized.items():
+                state_tuple = tuple(bool(int(x)) for x in key_str.split(","))
+                self.table[state_tuple] = {}
+                for act_str, val_dict in action_dict.items():
+                    act = int(act_str)
+                    self.table[state_tuple][act] = QValue(
+                        value=float(val_dict["value"]),
+                        n_updates=int(val_dict.get("n_updates", 0)),
+                    )
+        except (KeyError, TypeError, ValueError):
+            self.table.clear()
+            return False
         return True
 
 
