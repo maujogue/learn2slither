@@ -98,6 +98,7 @@ def run_game(
     episode = 1
     score = len(state.snake.body)
     last_dist = get_min_green_dist(state)
+    steps_without_apple = 0
 
     # Instantiate Sliders (Width: 5-25, Height: 5-20, Speed: 2-20)
     slider_width = Slider(
@@ -194,7 +195,8 @@ def run_game(
             model_path, \
             training, \
             ai_mode, \
-            gui_initiated_training
+            gui_initiated_training, \
+            steps_without_apple
         if state.is_game_over:
             return
 
@@ -314,7 +316,21 @@ def run_game(
                 state.change_direction(new_dir)
                 agent_choice = new_dir.name
 
+            prev_snake_len = len(state.snake.body)
             state.step()
+
+            # Stagnation detection in AI mode: game over if no apple eaten for too long
+            if ai_mode and not state.is_game_over:
+                if len(state.snake.body) > prev_snake_len:
+                    steps_without_apple = 0
+                else:
+                    steps_without_apple += 1
+                    no_apple_limit = grid_width * grid_height * 2
+                    if steps_without_apple >= no_apple_limit:
+                        state.is_game_over = True
+                        state.game_over_reason = None
+                        steps_without_apple = 0
+                        print(f"\nSTAGNATION: No apple eaten in {no_apple_limit} steps. Game over.")
 
         # Output State Vision to terminal on every tick
         print_vision_grid(state)
@@ -359,6 +375,7 @@ def run_game(
                         state = create_initial_game(
                             width=grid_width, height=grid_height
                         )
+                        steps_without_apple = 0
                         game_started = ai_mode
 
                         pygame.time.set_timer(MOVE_EVENT, int(1000 / speed))
