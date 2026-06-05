@@ -1,7 +1,11 @@
 import argparse
 
 from learn2slither.commands.handlers import benchmark, test, train
-from learn2slither.commands.options import setup_benchmark_args, setup_test_args, setup_train_args
+from learn2slither.commands.options import (
+    setup_benchmark_args,
+    setup_test_args,
+    setup_train_args,
+)
 
 
 def main() -> None:
@@ -9,7 +13,9 @@ def main() -> None:
 
     Accepts subcommands 'train', 'test', or 'benchmark'.
     """
-    parser = argparse.ArgumentParser(description="Learn2Slither - Playable Snake Game")
+    parser = argparse.ArgumentParser(
+        description="Learn2Slither - Playable Snake Game"
+    )
 
     # Common arguments shared by both subparsers
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -23,7 +29,10 @@ def main() -> None:
         "--height", type=int, default=10, help="Initial board height (5-20)"
     )
     parent_parser.add_argument(
-        "--speed", type=int, default=6, help="Snake speed in steps per second (1-20)"
+        "--speed",
+        type=int,
+        default=6,
+        help="Snake speed in steps per second (1-20)",
     )
 
     subparsers = parser.add_subparsers(

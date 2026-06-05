@@ -6,7 +6,10 @@ def get_min_green_dist(state: GameState) -> float:
     if not state.green_apples:
         return 0.0
     head = state.snake.head
-    return min(abs(apple.x - head.x) + abs(apple.y - head.y) for apple in state.green_apples)
+    return min(
+        abs(apple.x - head.x) + abs(apple.y - head.y)
+        for apple in state.green_apples
+    )
 
 
 def compute_reward(

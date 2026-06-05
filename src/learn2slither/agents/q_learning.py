@@ -136,7 +136,10 @@ class QLearningAgent:
         self.training_steps = 0
 
     def get_action(
-        self, state: StateFeatures, training: bool = True, verbose: bool | None = None
+        self,
+        state: StateFeatures,
+        training: bool = True,
+        verbose: bool | None = None,
     ) -> int:
         """Selects an action using an epsilon-greedy policy."""
         if training and random.random() < self.epsilon:

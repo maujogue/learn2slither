@@ -99,9 +99,13 @@ class StateFeatures:
         danger_right = is_obstacle(head.move(Direction.RIGHT))
 
         # Raycast function that stops at obstacles (wall/body)
-        def raycast_apples(start: Point, direction: Direction) -> tuple[bool, bool]:
+        def raycast_apples(
+            start: Point, direction: Direction
+        ) -> tuple[bool, bool]:
             curr = start.move(direction)
-            while state.is_within_bounds(curr) and curr not in state.snake.body:
+            while (
+                state.is_within_bounds(curr) and curr not in state.snake.body
+            ):
                 if curr in state.green_apples:
                     return True, False
                 if curr in state.red_apples:
@@ -231,7 +235,9 @@ class NeuralStateFeatures:
         wall_up, body_up, green_up, red_up = raycast(Direction.UP)
         wall_left, body_left, green_left, red_left = raycast(Direction.LEFT)
         wall_down, body_down, green_down, red_down = raycast(Direction.DOWN)
-        wall_right, body_right, green_right, red_right = raycast(Direction.RIGHT)
+        wall_right, body_right, green_right, red_right = raycast(
+            Direction.RIGHT
+        )
 
         return cls(
             wall_up=wall_up,

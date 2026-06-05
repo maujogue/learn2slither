@@ -1,5 +1,10 @@
 import sys
-from learn2slither.core import Direction, GameOverReason, Point, create_initial_game
+from learn2slither.core import (
+    Direction,
+    GameOverReason,
+    Point,
+    create_initial_game,
+)
 
 
 def clear_terminal() -> None:

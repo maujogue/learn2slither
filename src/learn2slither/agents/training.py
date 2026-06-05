@@ -8,12 +8,19 @@ import time
 from learn2slither.agents import create_agent
 from learn2slither.agents.actions import EngineName, action_to_direction
 from learn2slither.agents.features import NeuralStateFeatures, StateFeatures
-from learn2slither.agents.plots import _loss_plot_path, _validation_plot_path, _write_loss_plot, _write_validation_plot
+from learn2slither.agents.plots import (
+    _loss_plot_path,
+    _validation_plot_path,
+    _write_loss_plot,
+    _write_validation_plot,
+)
 from learn2slither.agents.rewards import compute_reward, get_min_green_dist
 from learn2slither.core import create_initial_game
 
 
-def _run_validation_command(model_path: str, engine: EngineName, width: int, height: int) -> float:
+def _run_validation_command(
+    model_path: str, engine: EngineName, width: int, height: int
+) -> float:
     command = [
         "uv",
         "run",
@@ -31,7 +38,9 @@ def _run_validation_command(model_path: str, engine: EngineName, width: int, hei
         model_path,
     ]
     try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command, check=True, capture_output=True, text=True
+        )
     except FileNotFoundError:
         fallback = [
             sys.executable,
@@ -49,14 +58,16 @@ def _run_validation_command(model_path: str, engine: EngineName, width: int, hei
             "100",
             model_path,
         ]
-        result = subprocess.run(fallback, check=True, capture_output=True, text=True)
+        result = subprocess.run(
+            fallback, check=True, capture_output=True, text=True
+        )
     output = f"{result.stdout}\n{result.stderr}"
     match = re.search(r"Mean Score:\s*([0-9]+(?:\.[0-9]+)?)", output)
     if match is None:
-        raise RuntimeError(f"Could not parse validation mean score from command output:\n{output}")
+        raise RuntimeError(
+            f"Could not parse validation mean score from command output:\n{output}"
+        )
     return float(match.group(1))
-
-
 
 
 def train_agent(
@@ -75,17 +86,27 @@ def train_agent(
     agent = create_agent(engine, training=True)
 
     if save_path and agent.load_from_file(save_path):
-        print(f"Loaded existing {model_label} from '{save_path}' to continue training.")
+        print(
+            f"Loaded existing {model_label} from '{save_path}' to continue training."
+        )
 
     scores: list[int] = []
     steps_list: list[int] = []
     validation_points: list[tuple[int, float, float]] = []
     loss_points: list[tuple[int, float]] = []
-    temp_validation_dir = tempfile.TemporaryDirectory() if save_path is None else None
+    temp_validation_dir = (
+        tempfile.TemporaryDirectory() if save_path is None else None
+    )
     validation_model_path = save_path
     if validation_model_path is None and temp_validation_dir is not None:
-        filename = "q_table_validation.json" if engine == "q" else "dqn_validation.json"
-        validation_model_path = os.path.join(temp_validation_dir.name, filename)
+        filename = (
+            "q_table_validation.json"
+            if engine == "q"
+            else "dqn_validation.json"
+        )
+        validation_model_path = os.path.join(
+            temp_validation_dir.name, filename
+        )
     plot_path = (
         _validation_plot_path(save_path)
         if save_path is not None
@@ -124,7 +145,9 @@ def train_agent(
                 else StateFeatures.from_game_state(state)
             )
             done = state.is_game_over
-            reward, score, last_dist = compute_reward(state, score, last_dist, engine)
+            reward, score, last_dist = compute_reward(
+                state, score, last_dist, engine
+            )
             training_steps_before = agent.training_steps
             agent.update(curr_features, action, reward, next_features, done)
             if (
@@ -167,11 +190,15 @@ def train_agent(
                 f"Mean Score (100 runs): {validation_mean:.2f} | Training Time: {elapsed:.2f}s"
             )
 
-    if episodes > 0 and (not validation_points or validation_points[-1][0] != episodes):
+    if episodes > 0 and (
+        not validation_points or validation_points[-1][0] != episodes
+    ):
         if validation_model_path is None:
             raise RuntimeError("validation_model_path was not initialized")
         agent.save_to_file(validation_model_path)
-        validation_mean = _run_validation_command(validation_model_path, engine, width, height)
+        validation_mean = _run_validation_command(
+            validation_model_path, engine, width, height
+        )
         elapsed = time.perf_counter() - started_at
         validation_points.append((episodes, validation_mean, elapsed))
         print(
@@ -186,10 +213,11 @@ def train_agent(
         _write_loss_plot(loss_points, loss_plot_path)
         print(f"DQN training loss plot saved to '{loss_plot_path}'.")
 
-
     if save_path:
         agent.save_to_file(save_path)
-        print(f"🎉 Training completed successfully! Trained {model_label} saved to '{save_path}'.")
+        print(
+            f"🎉 Training completed successfully! Trained {model_label} saved to '{save_path}'."
+        )
     else:
         print(
             f"🎉 Training completed successfully! ({model_label} was not saved since save_path is None)"

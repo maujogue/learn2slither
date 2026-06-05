@@ -31,7 +31,9 @@ def run_headless_autopilot(
                 f"⚠️ Warning: Could not load {model_label} from '{model_path}'. Using untrained agent."
             )
     else:
-        print(f"⚠️ Warning: No {model_label} path provided. Using untrained agent.")
+        print(
+            f"⚠️ Warning: No {model_label} path provided. Using untrained agent."
+        )
 
     scores = []
     max_steps = width * height * 10
@@ -44,13 +46,17 @@ def run_headless_autopilot(
                 curr_features = NeuralStateFeatures.from_game_state(state)
             else:
                 curr_features = StateFeatures.from_game_state(state)
-            action = agent.get_action(curr_features, training=False, verbose=verbose)
+            action = agent.get_action(
+                curr_features, training=False, verbose=verbose
+            )
             state.change_direction(action_to_direction(action))
             state.step()
             done = state.is_game_over
             steps += 1
 
-        progress_str = f"Game {i}/{runs} - Current Score: {len(state.snake.body)}"
+        progress_str = (
+            f"Game {i}/{runs} - Current Score: {len(state.snake.body)}"
+        )
         if verbose:
             print(progress_str)
         else:

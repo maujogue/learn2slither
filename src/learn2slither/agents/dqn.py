@@ -46,14 +46,18 @@ class DQNAgent:
         self.min_epsilon = min_epsilon
         self.gamma = gamma
         self.learning_rate = learning_rate
-        self.hidden_layers = hidden_layers if hidden_layers is not None else [64, 64]
+        self.hidden_layers = (
+            hidden_layers if hidden_layers is not None else [64, 64]
+        )
         self.batch_size = batch_size
         self.replay_capacity = replay_capacity
         self.target_sync_interval = target_sync_interval
         self.seed = seed
         self.training_steps = 0
         self.last_loss: float | None = None
-        self.replay_memory: deque[ReplayTransition] = deque(maxlen=replay_capacity)
+        self.replay_memory: deque[ReplayTransition] = deque(
+            maxlen=replay_capacity
+        )
         self.model = DQN(
             self.state_size,
             self.n_actions,
@@ -67,7 +71,9 @@ class DQNAgent:
         )
 
     @staticmethod
-    def vectorize(state: StateFeatures | NeuralStateFeatures) -> tuple[float, ...]:
+    def vectorize(
+        state: StateFeatures | NeuralStateFeatures,
+    ) -> tuple[float, ...]:
         if isinstance(state, NeuralStateFeatures):
             return state.to_tuple()
         return tuple(1.0 if value else 0.0 for value in state.to_tuple())
@@ -77,7 +83,10 @@ class DQNAgent:
         return np.asarray(rows, dtype=np.float64)
 
     def get_action(
-        self, state: StateFeatures | NeuralStateFeatures, training: bool = True, verbose: bool | None = None
+        self,
+        state: StateFeatures | NeuralStateFeatures,
+        training: bool = True,
+        verbose: bool | None = None,
     ) -> int:
         epsilon = self.epsilon if training else 0.0
         states = self._array([self.vectorize(state)])
@@ -113,12 +122,22 @@ class DQNAgent:
 
         batch = random.sample(list(self.replay_memory), self.batch_size)
         states = self._array([transition.state for transition in batch])
-        actions = np.asarray([transition.action for transition in batch], dtype=np.intp)
-        rewards = np.asarray([transition.reward for transition in batch], dtype=np.float64)
-        next_states = self._array([transition.next_state for transition in batch])
-        dones = np.asarray([transition.done for transition in batch], dtype=bool)
+        actions = np.asarray(
+            [transition.action for transition in batch], dtype=np.intp
+        )
+        rewards = np.asarray(
+            [transition.reward for transition in batch], dtype=np.float64
+        )
+        next_states = self._array(
+            [transition.next_state for transition in batch]
+        )
+        dones = np.asarray(
+            [transition.done for transition in batch], dtype=bool
+        )
         self.last_loss = float(
-            self.model.train_batch(states, actions, rewards, next_states, dones, loss="huber")
+            self.model.train_batch(
+                states, actions, rewards, next_states, dones, loss="huber"
+            )
         )
         self.training_steps += 1
         if self.training_steps % self.target_sync_interval == 0:
@@ -159,16 +178,31 @@ class DQNAgent:
                 if not content:
                     return False
                 payload = json.loads(content)
-            if payload.get("engine") != "nn" or payload.get("feature_encoding") != "ray_wall_body_inverse_v1":
+            if (
+                payload.get("engine") != "nn"
+                or payload.get("feature_encoding")
+                != "ray_wall_body_inverse_v1"
+            ):
                 return False
             self.epsilon = float(payload.get("epsilon", self.epsilon))
-            self.epsilon_decay = float(payload.get("epsilon_decay", self.epsilon_decay))
-            self.min_epsilon = float(payload.get("min_epsilon", self.min_epsilon))
+            self.epsilon_decay = float(
+                payload.get("epsilon_decay", self.epsilon_decay)
+            )
+            self.min_epsilon = float(
+                payload.get("min_epsilon", self.min_epsilon)
+            )
             self.gamma = float(payload.get("gamma", self.gamma))
-            self.learning_rate = float(payload.get("learning_rate", self.learning_rate))
-            self.hidden_layers = [int(v) for v in payload.get("hidden_layers", self.hidden_layers)]
+            self.learning_rate = float(
+                payload.get("learning_rate", self.learning_rate)
+            )
+            self.hidden_layers = [
+                int(v)
+                for v in payload.get("hidden_layers", self.hidden_layers)
+            ]
             self.batch_size = int(payload.get("batch_size", self.batch_size))
-            self.replay_capacity = int(payload.get("replay_capacity", self.replay_capacity))
+            self.replay_capacity = int(
+                payload.get("replay_capacity", self.replay_capacity)
+            )
             self.target_sync_interval = int(
                 payload.get("target_sync_interval", self.target_sync_interval)
             )
@@ -189,7 +223,9 @@ class DQNAgent:
                 use_target_network=True,
             )
             self._load_network_payload(self.model.network, payload["network"])
-            self._load_network_payload(self.model.target_network, payload["target_network"])
+            self._load_network_payload(
+                self.model.target_network, payload["target_network"]
+            )
         except Exception:
             return False
         return True
@@ -201,7 +237,9 @@ class DQNAgent:
     def telemetry_summary(self) -> str:
         return f"Replay Samples: {len(self.replay_memory)}"
 
-    def best_action_value(self, state: StateFeatures | NeuralStateFeatures) -> tuple[int, float]:
+    def best_action_value(
+        self, state: StateFeatures | NeuralStateFeatures
+    ) -> tuple[int, float]:
         q_values = self.model.q_values(self._array([self.vectorize(state)]))[0]
         action = int(np.argmax(q_values))
         return action, float(q_values[action])
@@ -230,9 +268,19 @@ class DQNAgent:
         rms_biases = payload.get("rms_biases", [])
         if rms_weights and rms_biases:
             if not network._rms_W:
-                network._rms_W = [np.zeros_like(weights) for weights, _ in network._layers]
-                network._rms_b = [np.zeros_like(biases) for _, biases in network._layers]
+                network._rms_W = [
+                    np.zeros_like(weights) for weights, _ in network._layers
+                ]
+                network._rms_b = [
+                    np.zeros_like(biases) for _, biases in network._layers
+                ]
             for index, rms_weight in enumerate(rms_weights):
-                np.copyto(network._rms_W[index], np.asarray(rms_weight, dtype=np.float64))
+                np.copyto(
+                    network._rms_W[index],
+                    np.asarray(rms_weight, dtype=np.float64),
+                )
             for index, rms_bias in enumerate(rms_biases):
-                np.copyto(network._rms_b[index], np.asarray(rms_bias, dtype=np.float64))
+                np.copyto(
+                    network._rms_b[index],
+                    np.asarray(rms_bias, dtype=np.float64),
+                )

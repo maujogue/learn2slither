@@ -1,6 +1,12 @@
 from dataclasses import dataclass, field
 
-from learn2slither.core import BoardConfig, Direction, GameOverReason, Point, Snake
+from learn2slither.core import (
+    BoardConfig,
+    Direction,
+    GameOverReason,
+    Point,
+    Snake,
+)
 
 
 @dataclass
@@ -17,7 +23,10 @@ class GameState:
 
     def is_within_bounds(self, point: Point) -> bool:
         """Checks if a point is within the board boundaries."""
-        return 0 <= point.x < self.config.width and 0 <= point.y < self.config.height
+        return (
+            0 <= point.x < self.config.width
+            and 0 <= point.y < self.config.height
+        )
 
     def get_empty_cells(self) -> list[Point]:
         """Returns a list of all cells that are not occupied by the snake or any apples."""

@@ -1,8 +1,11 @@
 def _mean_score(scores: list[int]) -> float:
     """Return the arithmetic mean for a non-empty score list."""
     if not scores:
-        raise ValueError("At least one completed run is required to calculate score metrics.")
+        raise ValueError(
+            "At least one completed run is required to calculate score metrics."
+        )
     return sum(scores) / len(scores)
+
 
 def _median_sorted(values: list[int]) -> float:
     """Return the median for an already sorted non-empty list."""
@@ -26,7 +29,9 @@ def _quartiles_sorted(values: list[int]) -> tuple[float, float, float]:
 def _score_summary_lines(scores: list[int]) -> list[str]:
     """Return human-readable summary statistics for completed test runs."""
     if not scores:
-        raise ValueError("At least one completed run is required to calculate score metrics.")
+        raise ValueError(
+            "At least one completed run is required to calculate score metrics."
+        )
     sorted_scores = sorted(scores)
     n_scores = len(sorted_scores)
     mean_score = sum(sorted_scores) / n_scores

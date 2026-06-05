@@ -42,7 +42,9 @@ def peek_model_engine(path: str) -> str | None:
     except OSError:
         return None
 
-    if _DQN_HEAD_RE.search(head) or ('"engine"' in head and '"nn"' in head and '"network"' in head):
+    if _DQN_HEAD_RE.search(head) or (
+        '"engine"' in head and '"nn"' in head and '"network"' in head
+    ):
         return "nn"
     if _Q_TABLE_HEAD_RE.search(head):
         return "q"

@@ -35,7 +35,9 @@ def model_engine_for_path(path: str) -> str | None:
     return detect_model_engine(path)
 
 
-def find_model_files(models_dir: str, engine: str = "all") -> list[tuple[str, str]]:
+def find_model_files(
+    models_dir: str, engine: str = "all"
+) -> list[tuple[str, str]]:
     """Return discovered model files as (engine, path), sorted for stable output."""
     try:
         names = sorted(os.listdir(models_dir))
@@ -54,6 +56,7 @@ def find_model_files(models_dir: str, engine: str = "all") -> list[tuple[str, st
             continue
         models.append((detected_engine, path))
     return models
+
 
 def train(args: argparse.Namespace) -> None:
     """Sub-function to handle the training flow."""
@@ -76,7 +79,9 @@ def train(args: argparse.Namespace) -> None:
             prefix, ext = "q_table", "json"
         else:
             prefix, ext = "dqn", "json"
-        model_path = os.path.join(models_dir, f"{prefix}_{args.sessions}.{ext}")
+        model_path = os.path.join(
+            models_dir, f"{prefix}_{args.sessions}.{ext}"
+        )
 
     # If path already exists, prompt the user if they want to continue training or reset the file.
     if os.path.exists(model_path):
@@ -190,7 +195,11 @@ def test(args: argparse.Namespace) -> None:
             print(f"Loaded first model from '{model_path}'")
 
     # Warn if model does not exist when not manual testing and no GUI fallback is possible.
-    if not args.manual and model_path is not None and not os.path.exists(model_path):
+    if (
+        not args.manual
+        and model_path is not None
+        and not os.path.exists(model_path)
+    ):
         print(f"⚠️ Warning: model file '{model_path}' does not exist.")
         return
 
@@ -198,9 +207,12 @@ def test(args: argparse.Namespace) -> None:
     engine = args.engine
     if model_path is not None and os.path.exists(model_path):
         from learn2slither.agents.model_format import detect_model_engine
+
         detected = detect_model_engine(model_path)
         if detected is not None and detected != engine:
-            print(f"ℹ️  Auto-detected engine '{detected}' from model file (was '{engine}').")
+            print(
+                f"ℹ️  Auto-detected engine '{detected}' from model file (was '{engine}')."
+            )
             engine = detected
 
     if args.headless:
@@ -235,7 +247,6 @@ def test(args: argparse.Namespace) -> None:
         )
 
 
-
 def benchmark(args: argparse.Namespace) -> None:
     """Run every matching saved model headlessly and print the best performers."""
     width = max(5, min(25, args.width))
@@ -262,7 +273,9 @@ def benchmark(args: argparse.Namespace) -> None:
         mean_score = _mean_score(scores)
         max_score = max(scores)
         results.append((mean_score, max_score, engine, model_path, scores))
-        print(f"Mean Score: {mean_score:.2f} | Max Score: {max_score} | Scores: {scores}")
+        print(
+            f"Mean Score: {mean_score:.2f} | Max Score: {max_score} | Scores: {scores}"
+        )
 
     results.sort(key=lambda result: (-result[0], -result[1], result[3]))
 

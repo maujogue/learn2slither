@@ -64,7 +64,9 @@ def _write_loss_plot(points: list[tuple[int, float]], filepath: str) -> None:
         f.write(svg)
 
 
-def _write_validation_plot(points: list[tuple[int, float, float]], filepath: str) -> None:
+def _write_validation_plot(
+    points: list[tuple[int, float, float]], filepath: str
+) -> None:
     if not points:
         return
 
@@ -91,13 +93,17 @@ def _write_validation_plot(points: list[tuple[int, float, float]], filepath: str
         return margin_top + plot_height - (score / y_score_max) * plot_height
 
     def time_y_pos(seconds: float) -> float:
-        return margin_top + plot_height - (seconds / y_seconds_max) * plot_height
+        return (
+            margin_top + plot_height - (seconds / y_seconds_max) * plot_height
+        )
 
     score_polyline = " ".join(
-        f"{x_pos(episode):.2f},{score_y_pos(score):.2f}" for episode, score, _ in points
+        f"{x_pos(episode):.2f},{score_y_pos(score):.2f}"
+        for episode, score, _ in points
     )
     time_polyline = " ".join(
-        f"{x_pos(episode):.2f},{time_y_pos(seconds):.2f}" for episode, _, seconds in points
+        f"{x_pos(episode):.2f},{time_y_pos(seconds):.2f}"
+        for episode, _, seconds in points
     )
     circles = "\n".join(
         f'<circle cx="{x_pos(episode):.2f}" cy="{score_y_pos(score):.2f}" r="4" fill="#2563eb">'

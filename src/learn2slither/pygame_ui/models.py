@@ -4,7 +4,9 @@ from learn2slither.agents.model_format import detect_model_engine
 
 
 def _get_default_model_paths(model_path: str | None, engine: str) -> list[str]:
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    root_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     default_name = "q_table.json" if engine == "q" else "dqn.json"
     candidates = [
         os.path.join(root_dir, "models", default_name),
@@ -28,7 +30,9 @@ def _matches_engine(path: str, engine: str) -> bool:
 
 
 def _discover_model_files(model_path: str | None, engine: str) -> list[str]:
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    root_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     dirs = [os.path.join(root_dir, "models"), os.path.dirname(__file__)]
     paths = _get_default_model_paths(model_path, engine)
     seen = {os.path.abspath(path) for path in paths}

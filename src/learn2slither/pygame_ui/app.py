@@ -4,7 +4,14 @@ import sys
 import pygame
 from learn2slither.core import Direction, GameOverReason, create_initial_game
 from learn2slither.runtime.terminal import print_vision_grid
-from learn2slither.agents import NeuralStateFeatures, StateFeatures, action_to_direction, compute_reward, create_agent, get_min_green_dist
+from learn2slither.agents import (
+    NeuralStateFeatures,
+    StateFeatures,
+    action_to_direction,
+    compute_reward,
+    create_agent,
+    get_min_green_dist,
+)
 
 from learn2slither.pygame_ui.constants import (
     CELL_SIZE,
@@ -19,10 +26,11 @@ from learn2slither.pygame_ui.constants import (
     COLOR_SNAKE_BODY,
     COLOR_GREEN_APPLE,
     COLOR_RED_APPLE,
-    COLOR_ALERT
+    COLOR_ALERT,
 )
 from learn2slither.pygame_ui.models import _discover_model_files, _model_label
 from learn2slither.pygame_ui.widgets import Slider
+
 
 def run_game(
     initial_width: int = 10,
@@ -66,7 +74,9 @@ def run_game(
     model_files = _discover_model_files(model_path, engine)
     if model_path is None and model_files and (autopilot or training):
         model_path = model_files[0]
-    model_existed_before_training = bool(model_path and os.path.exists(model_path))
+    model_existed_before_training = bool(
+        model_path and os.path.exists(model_path)
+    )
     if model_path and (autopilot or training):
         if not agent.load_from_file(model_path):
             print(
@@ -203,7 +213,11 @@ def run_game(
         agent_choice = None
         if training:
             # Extract absolute features
-            curr_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
+            curr_features = (
+                NeuralStateFeatures.from_game_state(state)
+                if engine == "nn"
+                else StateFeatures.from_game_state(state)
+            )
             # Choose action (training exploration)
             action = agent.get_action(curr_features, training=True)
             # Translate absolute action to direction
@@ -215,11 +229,17 @@ def run_game(
             state.step()
 
             # Observe new state and reward
-            next_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
+            next_features = (
+                NeuralStateFeatures.from_game_state(state)
+                if engine == "nn"
+                else StateFeatures.from_game_state(state)
+            )
             done = state.is_game_over
 
             # Compute reward
-            reward, score, last_dist = compute_reward(state, score, last_dist, engine)
+            reward, score, last_dist = compute_reward(
+                state, score, last_dist, engine
+            )
 
             # Update model
             agent.update(curr_features, action, reward, next_features, done)
@@ -262,7 +282,9 @@ def run_game(
                                 )
                             )
                             new_model_path = os.path.join(
-                                root_dir, "models", f"{'q_table' if engine == 'q' else 'dqn'}_{episodes}.json"
+                                root_dir,
+                                "models",
+                                f"{'q_table' if engine == 'q' else 'dqn'}_{episodes}.json",
                             )
                         else:
                             new_model_path = model_path
@@ -302,13 +324,19 @@ def run_game(
                         running = False
                 else:
                     # Reset for next training episode automatically
-                    state = create_initial_game(width=grid_width, height=grid_height)
+                    state = create_initial_game(
+                        width=grid_width, height=grid_height
+                    )
                     score = len(state.snake.body)
                     last_dist = get_min_green_dist(state)
         else:
             if ai_mode:
                 # Extract absolute features
-                curr_features = NeuralStateFeatures.from_game_state(state) if engine == "nn" else StateFeatures.from_game_state(state)
+                curr_features = (
+                    NeuralStateFeatures.from_game_state(state)
+                    if engine == "nn"
+                    else StateFeatures.from_game_state(state)
+                )
                 # Choose action
                 action = agent.get_action(curr_features, training=False)
                 # Translate absolute action to direction
@@ -330,7 +358,9 @@ def run_game(
                         state.is_game_over = True
                         state.game_over_reason = None
                         steps_without_apple = 0
-                        print(f"\nSTAGNATION: No apple eaten in {no_apple_limit} steps. Game over.")
+                        print(
+                            f"\nSTAGNATION: No apple eaten in {no_apple_limit} steps. Game over."
+                        )
 
         # Output State Vision to terminal on every tick
         print_vision_grid(state)
@@ -389,7 +419,9 @@ def run_game(
                     else:
                         space_held = True
                         if step_by_step:
-                            game_started = True  # Start game if not already started
+                            game_started = (
+                                True  # Start game if not already started
+                            )
                             perform_step()
                 else:
                     direction_map = {
@@ -437,7 +469,10 @@ def run_game(
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     # Check Autopilot toggle click
                     toggle_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 345, SIDEBAR_WIDTH - 40, 45
+                        board_w + 20,
+                        HEADER_HEIGHT + 345,
+                        SIDEBAR_WIDTH - 40,
+                        45,
                     )
                     if not training and toggle_rect.collidepoint(mouse_pos):
                         if not ai_mode:
@@ -450,7 +485,10 @@ def run_game(
                                 game_started = True
 
                     dropdown_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 395, SIDEBAR_WIDTH - 40, 36
+                        board_w + 20,
+                        HEADER_HEIGHT + 395,
+                        SIDEBAR_WIDTH - 40,
+                        36,
                     )
                     option_rects = [
                         pygame.Rect(
@@ -478,14 +516,22 @@ def run_game(
 
                     # Check Step-by-step toggle click
                     step_toggle_rect = pygame.Rect(
-                        board_w + 20, HEADER_HEIGHT + 285, SIDEBAR_WIDTH - 40, 45
+                        board_w + 20,
+                        HEADER_HEIGHT + 285,
+                        SIDEBAR_WIDTH - 40,
+                        45,
                     )
-                    if not training and step_toggle_rect.collidepoint(mouse_pos):
+                    if not training and step_toggle_rect.collidepoint(
+                        mouse_pos
+                    ):
                         step_by_step = not step_by_step
 
                     # Check Train Sessions Button click
                     btn_train_rect = pygame.Rect(
-                        board_w + 35, HEADER_HEIGHT + 575, SIDEBAR_WIDTH - 70, 40
+                        board_w + 35,
+                        HEADER_HEIGHT + 575,
+                        SIDEBAR_WIDTH - 70,
+                        40,
                     )
                     if not training and btn_train_rect.collidepoint(mouse_pos):
                         training = True
@@ -494,7 +540,9 @@ def run_game(
                         gui_initiated_training = True
                         episodes = slider_train_sessions.current_val
                         episode = 1
-                        agent.epsilon = 0.9  # Set high exploration rate for training
+                        agent.epsilon = (
+                            0.9  # Set high exploration rate for training
+                        )
                         # Reset game state for training
                         state = create_initial_game(
                             width=grid_width, height=grid_height
@@ -529,10 +577,14 @@ def run_game(
 
                         # Remove out-of-bounds apples and spawn new ones
                         state.green_apples = {
-                            p for p in state.green_apples if state.is_within_bounds(p)
+                            p
+                            for p in state.green_apples
+                            if state.is_within_bounds(p)
                         }
                         state.red_apples = {
-                            p for p in state.red_apples if state.is_within_bounds(p)
+                            p
+                            for p in state.red_apples
+                            if state.is_within_bounds(p)
                         }
                         while len(state.green_apples) < 2:
                             state._spawn_green_apple()
@@ -569,7 +621,9 @@ def run_game(
         score_text = font_title.render(
             f"SCORE: {len(state.snake.body)}", True, COLOR_TEXT_PRIMARY
         )
-        screen.blit(score_text, (15, (HEADER_HEIGHT - score_text.get_height()) // 2))
+        screen.blit(
+            score_text, (15, (HEADER_HEIGHT - score_text.get_height()) // 2)
+        )
 
         # ----------------- DRAW GRID BOARD -----------------
         # Draw background Grid Lines (within board_w and board_h bounds)
@@ -634,7 +688,9 @@ def run_game(
         )
 
         # Title for Sidebar
-        lbl_settings = font_title_sm.render("SETTINGS", True, COLOR_TEXT_PRIMARY)
+        lbl_settings = font_title_sm.render(
+            "SETTINGS", True, COLOR_TEXT_PRIMARY
+        )
         screen.blit(lbl_settings, (board_w + 20, HEADER_HEIGHT + 20))
 
         # Draw sliders
@@ -670,10 +726,16 @@ def run_game(
             )
             autopilot_available = model_path is not None or bool(model_files)
             pygame.draw.rect(screen, COLOR_BG_DARK, toggle_rect)
-            pygame.draw.rect(screen, COLOR_DIVIDER, toggle_rect, 1)  # Outline border
+            pygame.draw.rect(
+                screen, COLOR_DIVIDER, toggle_rect, 1
+            )  # Outline border
 
-            toggle_label_color = COLOR_TEXT_PRIMARY if autopilot_available else COLOR_TEXT_MUTED
-            toggle_lbl = font_subtitle.render("AUTOPILOT", True, toggle_label_color)
+            toggle_label_color = (
+                COLOR_TEXT_PRIMARY if autopilot_available else COLOR_TEXT_MUTED
+            )
+            toggle_lbl = font_subtitle.render(
+                "AUTOPILOT", True, toggle_label_color
+            )
             screen.blit(
                 toggle_lbl,
                 (
@@ -696,7 +758,9 @@ def run_game(
             knob_y = switch_y + (switch_h - knob_size) // 2
             knob_x = switch_x + (switch_w - knob_size - 4 if ai_mode else 4)
             knob_rect = pygame.Rect(knob_x, knob_y, knob_size, knob_size)
-            knob_color = (255, 255, 255) if autopilot_available else COLOR_TEXT_MUTED
+            knob_color = (
+                (255, 255, 255) if autopilot_available else COLOR_TEXT_MUTED
+            )
             pygame.draw.rect(screen, knob_color, knob_rect)
 
             dropdown_rect = pygame.Rect(
@@ -706,13 +770,17 @@ def run_game(
             pygame.draw.rect(screen, COLOR_DIVIDER, dropdown_rect, 1)
 
             if model_files:
-                selected_label = _model_label(model_files[selected_model_index])
+                selected_label = _model_label(
+                    model_files[selected_model_index]
+                )
             else:
                 selected_label = "No model files"
             max_label_chars = 25
             if len(selected_label) > max_label_chars:
                 selected_label = selected_label[: max_label_chars - 1] + "…"
-            model_label_color = COLOR_TEXT_PRIMARY if model_files else COLOR_TEXT_MUTED
+            model_label_color = (
+                COLOR_TEXT_PRIMARY if model_files else COLOR_TEXT_MUTED
+            )
             model_text = font_subtitle.render(
                 selected_label, True, model_label_color
             )
@@ -720,8 +788,8 @@ def run_game(
                 model_text,
                 (
                     dropdown_rect.x + 12,
-                    dropdown_rect.y + (dropdown_rect.height - model_text.get_height())
-                    // 2,
+                    dropdown_rect.y
+                    + (dropdown_rect.height - model_text.get_height()) // 2,
                 ),
             )
             arrow_text = "▲" if model_dropdown_open else "▼"
@@ -730,10 +798,10 @@ def run_game(
                 arrow,
                 (
                     dropdown_rect.right - arrow.get_width() - 12,
-                    dropdown_rect.y + (dropdown_rect.height - arrow.get_height()) // 2,
+                    dropdown_rect.y
+                    + (dropdown_rect.height - arrow.get_height()) // 2,
                 ),
             )
-
 
         # Draw STEP-BY-STEP Toggle (no rounded corners, simple)
         if not training:
@@ -752,18 +820,24 @@ def run_game(
                 step_toggle_lbl,
                 (
                     step_toggle_rect.x + 15,
-                    step_toggle_rect.y + (45 - step_toggle_lbl.get_height()) // 2,
+                    step_toggle_rect.y
+                    + (45 - step_toggle_lbl.get_height()) // 2,
                 ),
             )
 
             step_switch_w = 50
             step_switch_h = 24
             step_switch_x = (
-                step_toggle_rect.x + step_toggle_rect.width - step_switch_w - 15
+                step_toggle_rect.x
+                + step_toggle_rect.width
+                - step_switch_w
+                - 15
             )
             step_switch_y = step_toggle_rect.y + (45 - step_switch_h) // 2
 
-            step_switch_bg_color = COLOR_SNAKE_HEAD if step_by_step else COLOR_DIVIDER
+            step_switch_bg_color = (
+                COLOR_SNAKE_HEAD if step_by_step else COLOR_DIVIDER
+            )
             step_switch_rect = pygame.Rect(
                 step_switch_x, step_switch_y, step_switch_w, step_switch_h
             )
@@ -788,8 +862,12 @@ def run_game(
             pygame.draw.rect(screen, COLOR_BG_DARK, training_rect)
             pygame.draw.rect(screen, COLOR_DIVIDER, training_rect, 1)
 
-            lbl_training = font_title_sm.render("TRAINING", True, COLOR_TEXT_PRIMARY)
-            screen.blit(lbl_training, (training_rect.x + 15, training_rect.y + 15))
+            lbl_training = font_title_sm.render(
+                "TRAINING", True, COLOR_TEXT_PRIMARY
+            )
+            screen.blit(
+                lbl_training, (training_rect.x + 15, training_rect.y + 15)
+            )
 
             slider_train_sessions.x = training_rect.x + 15
             slider_train_sessions.y = training_rect.y + 80
@@ -811,7 +889,9 @@ def run_game(
                 board_w + 35, HEADER_HEIGHT + 575, SIDEBAR_WIDTH - 70, 40
             )
             is_train_hovered = btn_train_rect.collidepoint(mouse_pos)
-            btn_train_color = (90, 90, 90) if is_train_hovered else (60, 60, 60)
+            btn_train_color = (
+                (90, 90, 90) if is_train_hovered else (60, 60, 60)
+            )
 
             pygame.draw.rect(screen, btn_train_color, btn_train_rect)
             pygame.draw.rect(screen, COLOR_DIVIDER, btn_train_rect, 1)
@@ -819,7 +899,9 @@ def run_game(
             btn_train_text = font_subtitle.render(
                 "TRAIN SESSIONS", True, COLOR_TEXT_PRIMARY
             )
-            btn_train_text_rect = btn_train_text.get_rect(center=btn_train_rect.center)
+            btn_train_text_rect = btn_train_text.get_rect(
+                center=btn_train_rect.center
+            )
             screen.blit(btn_train_text, btn_train_text_rect)
 
             if model_dropdown_open:
@@ -834,13 +916,17 @@ def run_game(
                         28,
                     )
                     option_color = (
-                        (55, 55, 55) if idx == selected_model_index else COLOR_BG_DARK
+                        (55, 55, 55)
+                        if idx == selected_model_index
+                        else COLOR_BG_DARK
                     )
                     pygame.draw.rect(screen, option_color, option_rect)
                     pygame.draw.rect(screen, COLOR_DIVIDER, option_rect, 1)
                     option_label = _model_label(path)
                     if len(option_label) > max_label_chars:
-                        option_label = option_label[: max_label_chars - 1] + "…"
+                        option_label = (
+                            option_label[: max_label_chars - 1] + "…"
+                        )
                     option_text = font_subtitle.render(
                         option_label, True, COLOR_TEXT_PRIMARY
                     )
@@ -849,7 +935,8 @@ def run_game(
                         (
                             option_rect.x + 12,
                             option_rect.y
-                            + (option_rect.height - option_text.get_height()) // 2,
+                            + (option_rect.height - option_text.get_height())
+                            // 2,
                         ),
                     )
 
@@ -857,7 +944,9 @@ def run_game(
             # Telemetry below the game board
             tel_x = 20
             tel_y = HEADER_HEIGHT + board_h + 20
-            lbl_tel = font_title_sm.render("TELEMETRY", True, COLOR_TEXT_PRIMARY)
+            lbl_tel = font_title_sm.render(
+                "TELEMETRY", True, COLOR_TEXT_PRIMARY
+            )
             screen.blit(lbl_tel, (tel_x, tel_y))
 
             if training:
@@ -908,7 +997,9 @@ def run_game(
                     apple_str_list.append("DOWN")
                 if feats.green_apple_right:
                     apple_str_list.append("RIGHT")
-                apple_str = ", ".join(apple_str_list) if apple_str_list else "None"
+                apple_str = (
+                    ", ".join(apple_str_list) if apple_str_list else "None"
+                )
 
                 lbl_apple = font_subtitle.render(
                     f"Green Apple: {apple_str}", True, COLOR_TEXT_MUTED
@@ -916,7 +1007,11 @@ def run_game(
                 screen.blit(lbl_apple, (tel_x, tel_y + 55))
 
                 # Show chosen action and Q-value
-                policy_feats = NeuralStateFeatures.from_game_state(state) if engine == "nn" else feats
+                policy_feats = (
+                    NeuralStateFeatures.from_game_state(state)
+                    if engine == "nn"
+                    else feats
+                )
                 action_id, q_val = agent.best_action_value(policy_feats)
                 action_names = {0: "UP", 1: "LEFT", 2: "DOWN", 3: "RIGHT"}
                 act_name = action_names.get(action_id, "UP")
@@ -947,7 +1042,9 @@ def run_game(
             start_prompt = font_gameover_sub.render(
                 "PRESS ANY DIRECTION KEY TO START", True, COLOR_TEXT_PRIMARY
             )
-            start_prompt_rect = start_prompt.get_rect(center=(center_x, center_y - 15))
+            start_prompt_rect = start_prompt.get_rect(
+                center=(center_x, center_y - 15)
+            )
             screen.blit(start_prompt, start_prompt_rect)
 
             # Pulsing sub prompt for controls
@@ -955,8 +1052,12 @@ def run_game(
             pulse = int(127 + 128 * math.sin(ticks * 0.007))
             sub_color = (pulse, pulse, pulse)
 
-            sub_prompt = font_subtitle.render("W/A/S/D or Arrow keys", True, sub_color)
-            sub_prompt_rect = sub_prompt.get_rect(center=(center_x, center_y + 15))
+            sub_prompt = font_subtitle.render(
+                "W/A/S/D or Arrow keys", True, sub_color
+            )
+            sub_prompt_rect = sub_prompt.get_rect(
+                center=(center_x, center_y + 15)
+            )
             screen.blit(sub_prompt, sub_prompt_rect)
 
         # ----------------- DRAW GAME OVER OVERLAY -----------------
@@ -985,7 +1086,9 @@ def run_game(
             elif state.game_over_reason == GameOverReason.STARVATION:
                 reason_str = "Starved (length hit 0)!"
 
-            go_reason = font_gameover_sub.render(reason_str, True, COLOR_TEXT_MUTED)
+            go_reason = font_gameover_sub.render(
+                reason_str, True, COLOR_TEXT_MUTED
+            )
             go_reason_rect = go_reason.get_rect(center=(center_x, center_y))
             screen.blit(go_reason, go_reason_rect)
 
@@ -997,7 +1100,9 @@ def run_game(
             go_restart = font_gameover_sub.render(
                 "Press [SPACE] to Restart", True, restart_color
             )
-            go_restart_rect = go_restart.get_rect(center=(center_x, center_y + 40))
+            go_restart_rect = go_restart.get_rect(
+                center=(center_x, center_y + 40)
+            )
             screen.blit(go_restart, go_restart_rect)
 
         # Flip screen
