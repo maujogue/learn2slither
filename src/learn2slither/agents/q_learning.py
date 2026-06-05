@@ -56,7 +56,7 @@ class QTable:
         best_action = 0
         best_val = -float("inf")
         actions = list(self.table[state_tuple].items())
-        # Shuffle actions to break ties randomly and prevent bias
+        # Shuffle actions to break ties randomly (if multiple values are equal) and prevent bias
         random.shuffle(actions)
         for act, q_val in actions:
             if q_val.value > best_val:
@@ -101,7 +101,6 @@ class QTable:
                     n_updates=int(val_dict.get("n_updates", 0)),
                 )
         return True
-
 
 
 class QLearningAgent:
@@ -175,6 +174,7 @@ class QLearningAgent:
 
     def save_to_file(self, filepath: str) -> None:
         self.q_table.save_to_file(filepath)
+
     def training_status(self) -> str:
         return f"States: {len(self.q_table.table)}"
 
